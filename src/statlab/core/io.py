@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from statlab import strings_es as S
+
 EXCEL_SUFFIXES = (".xlsx", ".xls", ".xlsm")
 NA_TOKENS = {"", "na", "nan", "n/a", "nd", "-", "."}
 EXAMPLE_NAME = "datos_ejemplo.csv"
@@ -19,7 +21,12 @@ EXAMPLE_NAME = "datos_ejemplo.csv"
 def read_table(name: str, raw: bytes) -> pd.DataFrame:
     """Lee CSV/TSV/Excel. Detecta separador y coma decimal (formato español)."""
     lower = name.lower()
-    if lower.endswith(EXCEL_SUFFIXES):
+    if lower.endswith(".xls"):
+        try:
+            df = pd.read_excel(io.BytesIO(raw))
+        except ImportError as e:  # el formato antiguo necesita xlrd, que no incluimos
+            raise ValueError(S.XLS_UNSUPPORTED) from e
+    elif lower.endswith(EXCEL_SUFFIXES):
         df = pd.read_excel(io.BytesIO(raw))
     else:
         df = None
@@ -30,7 +37,9 @@ def read_table(name: str, raw: bytes) -> pd.DataFrame:
             except UnicodeDecodeError:
                 continue
         if df is None:
-            raise ValueError("No se pudo leer el archivo (codificación desconocida).")
+            raise ValueError(S.READ_ENCODING)
+    if df.shape[1] < 2 or df.empty:
+        raise ValueError(S.READ_TOO_SMALL)
     return coerce_decimal_commas(df)
 
 

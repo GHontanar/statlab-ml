@@ -6,8 +6,9 @@ Aplicación de escritorio para análisis estadístico clínico. El primer módul
 imputación. Pensada para clínicos: interfaz gráfica, sin escribir código, y
 **sin conexión**: los datos nunca salen del equipo.
 
-> Estado: **M0 · andamiaje**. La ventana tiene el tema aplicado y el motor de
-> cálculo está probado; la carga de datos y los pasos llegan en los siguientes hitos.
+> Estado: **M1 · tabla de datos**. Se cargan CSV/TSV/Excel (o los datos de ejemplo) y
+> se asignan roles a las columnas y filas desde la tabla; los pasos de cálculo llegan
+> en los siguientes hitos.
 > Plan completo en [`docs/HANDOFF_statlab-desktop.md`](docs/HANDOFF_statlab-desktop.md).
 
 ## Desarrollo
@@ -30,9 +31,10 @@ tests sin pantalla: `QT_QPA_PLATFORM=offscreen uv run pytest`. Con
 
 ```
 src/statlab/
-  core/        lógica pura, sin Qt: io.py (lectura), kmeans.py (motor)
+  core/        lógica pura, sin Qt: io.py (lectura), dataset.py (roles y filas),
+               fmt.py (números en español), kmeans.py (motor)
   modules/     contrato AnalysisModule (base.py) y módulo kmeans/
-  ui/          ventana, barra lateral, tema (tokens, QSS, Inter, iconos)
+  ui/          ventana, tabla de datos, barra lateral, tema (tokens, QSS, Inter, iconos)
   strings_es.py  textos de la interfaz
   data/        datos de ejemplo integrados
 tests/         core/ (pytest) y ui/ (pytest-qt)

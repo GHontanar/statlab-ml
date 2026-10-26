@@ -5,8 +5,10 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QScrollArea, QVBoxLayout, QWidget
 
 from statlab import strings_es as S
+from statlab.core.dataset import Dataset
 from statlab.modules.base import AnalysisModule, EstadoPaso
 from statlab.ui.sidebar.step_card import StepCard
+from statlab.ui.sidebar.variables import VariablesSummary
 
 
 class Sidebar(QScrollArea):
@@ -37,6 +39,22 @@ class Sidebar(QScrollArea):
         layout.addStretch(1)
         self.setWidget(content)
 
-        first = next(iter(self.cards.values()))
+        self.variables = VariablesSummary()
+        self.variables.hide()
+        self.cards["variables"].set_content(self.variables)
+
+        first = self.cards["datos"]
         first.set_state(EstadoPaso.ACTIVO)
         first.set_summary(S.STEP_DATA_HINT)
+
+    def show_dataset(self, ds: Dataset) -> None:
+        # M1: estados mínimos; el stepper completo con invalidación llega en M2.
+        data = self.cards["datos"]
+        data.set_state(EstadoPaso.HECHO)
+        data.set_summary(S.DATA_SUMMARY.format(name=ds.fuente, rows=ds.n_filas, cols=len(ds.columnas)))
+        self.cards["variables"].set_state(EstadoPaso.ACTIVO)
+        self.variables.show()
+        self.update_variables(ds)
+
+    def update_variables(self, ds: Dataset) -> None:
+        self.variables.update_from(ds)

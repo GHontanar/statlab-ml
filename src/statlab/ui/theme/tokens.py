@@ -46,6 +46,9 @@ LIGHT: dict[str, str] = {
     "float_dark_fg": "#FFFFFF",
     "float_rows_bg": "#FDF3DC",
     "float_rows_fg": "#5C3D00",
+    "selection": "#CFE0F7",
+    "toast_bg": "#FDF3DC",
+    "toast_fg": "#5C3D00",
 }
 
 DARK: dict[str, str] = {
@@ -84,6 +87,9 @@ DARK: dict[str, str] = {
     "float_dark_fg": "#FFFFFF",
     "float_rows_bg": "#3A2E12",
     "float_rows_fg": "#F5DFA8",
+    "selection": "#2A4670",
+    "toast_bg": "#3A2E12",
+    "toast_fg": "#F5DFA8",
 }
 
 # Radios y espaciados (px)

@@ -15,6 +15,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
 from statlab import strings_es as S
+from statlab.core.dataset import Rol
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget
@@ -24,14 +25,7 @@ Cancelar = Callable[[], bool]
 # Resultado de un paso: solo tipos JSON (dict/list/str/números/None).
 Resultado = dict[str, Any]
 
-
-class Rol(StrEnum):
-    """Roles que puede tener una columna de la tabla."""
-
-    MODELO = "modelo"
-    DESCRIPTIVA = "descriptiva"
-    IDENTIFICADOR = "identificador"
-    LOG = "log"  # transformación log(1+x); solo junto a MODELO
+__all__ = ["AnalysisModule", "EstadoPaso", "Exportacion", "Paso", "Rol"]
 
 
 class EstadoPaso(StrEnum):

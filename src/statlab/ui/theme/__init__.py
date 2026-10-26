@@ -29,14 +29,21 @@ def _theme_dir():
     return resources.files("statlab.ui.theme")
 
 
+_loaded_family: str | None = None
+
+
 def load_fonts() -> str:
-    """Registra Inter y devuelve la familia que se usará (Inter o la del sistema)."""
+    """Registra Inter (una sola vez) y devuelve la familia que se usará (Inter o la del sistema)."""
+    global _loaded_family
+    if _loaded_family:
+        return _loaded_family
     family = None
     for name in _FONT_FILES:
         data = _theme_dir().joinpath("fonts", name).read_bytes()
         font_id = QFontDatabase.addApplicationFontFromData(data)
         if font_id >= 0 and family is None:
             family = QFontDatabase.applicationFontFamilies(font_id)[0]
+    _loaded_family = family
     return family or QGuiApplication.font().family()
 
 

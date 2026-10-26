@@ -56,6 +56,10 @@ class StepCard(QFrame):
         for child in self.findChildren(QLabel):
             _repolish(child)
 
+    def set_content(self, widget: QWidget) -> None:
+        """Controles o resumen detallado del paso, bajo el título."""
+        self.body.addWidget(widget)
+
     def set_summary(self, text: str) -> None:
         self.summary.setText(text)
         self.summary.setVisible(bool(text))

@@ -224,3 +224,108 @@ QScrollBar::add-line, QScrollBar::sub-line {
 QScrollBar::add-page, QScrollBar::sub-page {
     background: transparent;
 }
+
+/* --- Tabla de datos -------------------------------------------------- */
+QLabel#DataTitle {
+    font-weight: 600;
+}
+QLabel#NaBadge {
+    color: ${na_text};
+    background: ${na_bg};
+    border-radius: ${radius_chip}px;
+    padding: 2px 8px;
+    font-size: 12px;
+}
+QTableView#DataTable {
+    background: ${panel};
+    alternate-background-color: ${panel};
+    border: none;
+    border-top: 1px solid ${border};
+    gridline-color: ${gridline};
+    selection-background-color: ${selection};
+    selection-color: ${text};
+}
+
+/* Barras flotantes */
+QFrame#FloatBarColumns {
+    background: ${float_dark_bg};
+    border-radius: ${radius_card}px;
+}
+QFrame#FloatBarColumns QLabel#FloatCount {
+    color: ${float_dark_fg};
+    font-weight: 600;
+}
+QFrame#FloatBarColumns QPushButton#FloatButton {
+    background: transparent;
+    color: ${float_dark_fg};
+    border: 1px solid transparent;
+    min-height: 30px;
+    padding: 0px 10px;
+}
+QFrame#FloatBarColumns QPushButton#FloatButton:hover {
+    background: rgba(255, 255, 255, 0.14);
+}
+QFrame#FloatBarRows {
+    background: ${float_rows_bg};
+    border: 1px solid ${stale};
+    border-radius: ${radius_card}px;
+}
+QFrame#FloatBarRows QLabel#FloatCount {
+    color: ${float_rows_fg};
+    font-weight: 600;
+}
+QFrame#FloatBarRows QPushButton#FloatButton {
+    background: transparent;
+    color: ${float_rows_fg};
+    border: 1px solid transparent;
+    min-height: 30px;
+    padding: 0px 10px;
+}
+QFrame#FloatBarRows QPushButton#FloatButton:hover {
+    background: rgba(154, 103, 0, 0.14);
+}
+QLabel#Toast {
+    background: ${toast_bg};
+    color: ${toast_fg};
+    border: 1px solid ${stale};
+    border-radius: ${radius_button}px;
+    padding: 10px 14px;
+}
+
+/* --- Paso «Variables y filas» ---------------------------------------- */
+QLabel#FieldLabel {
+    color: ${text_secondary};
+    font-size: 12px;
+    font-weight: 500;
+}
+QLabel#RoleChip {
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: ${radius_chip}px;
+    padding: 2px 6px;
+}
+QLabel#RoleChip[role="model"] {
+    background: ${role_model_bg};
+    color: ${role_model_fg};
+}
+QLabel#RoleChip[role="descr"] {
+    background: ${role_descr_bg};
+    color: ${role_descr_fg};
+}
+QLabel#Hint {
+    color: ${text_muted};
+    font-size: 12px;
+}
+QPushButton#LinkButton {
+    background: transparent;
+    border: none;
+    color: ${accent};
+    padding: 0px;
+    min-height: 0px;
+    text-align: left;
+    font-size: 12px;
+}
+QPushButton#LinkButton:hover {
+    color: ${accent_hover};
+    text-decoration: underline;
+}
