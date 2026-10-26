@@ -1,0 +1,32 @@
+StatLab — análisis estadístico clínico (clustering k-means)
+============================================================
+
+StatLab funciona solo en este equipo: no se conecta a internet, no envía datos
+y no busca actualizaciones. No hace falta instalar Python ni nada más.
+
+WINDOWS
+  1. Descomprime el zip en una carpeta tuya (por ejemplo, Documentos\StatLab).
+     No hace falta ser administrador.
+  2. Abre la carpeta StatLab y haz doble clic en StatLab.exe.
+  3. La primera vez, Windows puede mostrar «Windows protegió su PC» (SmartScreen),
+     porque el programa no está firmado: pulsa «Más información» y luego
+     «Ejecutar de todas formas». Si el antivirus del hospital lo bloquea, pide al
+     servicio de informática que autorice la carpeta de StatLab.
+
+LINUX
+  1. Descomprime: tar xzf StatLab-*-linux-x86_64.tar.gz
+  2. Haz doble clic en StatLab dentro de la carpeta (o ejecuta ./StatLab).
+  3. Opcional: ./instalar-acceso-directo.sh lo añade al menú de aplicaciones.
+
+macOS
+  1. Descomprime el zip y arrastra StatLab.app a Aplicaciones.
+  2. La primera vez: clic derecho (o Ctrl+clic) sobre StatLab.app → «Abrir» →
+     «Abrir», porque el programa no está firmado por Apple.
+
+PRIVACIDAD
+  Los archivos de sesión (.statlab) y los exportes CSV y JSON contienen los datos
+  de los pacientes. Guárdalos en una ubicación segura.
+
+LICENCIAS
+  Ver la carpeta licenses (en StatLab/_internal/licenses): StatLab incluye Qt
+  bajo la LGPL v3, enlazada de forma dinámica, y la fuente Inter (SIL OFL 1.1).

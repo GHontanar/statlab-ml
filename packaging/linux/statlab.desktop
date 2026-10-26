@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=StatLab
+GenericName=Análisis estadístico clínico
+Comment=Clustering k-means para investigación clínica, sin conexión
+Exec=@STATLAB_DIR@/StatLab %f
+Icon=@STATLAB_DIR@/statlab.png
+Terminal=false
+Categories=Science;Education;MedicalSoftware;
+MimeType=application/x-statlab;
+StartupWMClass=statlab

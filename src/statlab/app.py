@@ -27,6 +27,12 @@ def create_app(argv: list[str] | None = None) -> QApplication:
 
 
 def main(argv: list[str] | None = None) -> int:
+    args = list(sys.argv if argv is None else argv)
+    if "--self-test" in args:
+        from statlab import selftest
+
+        i = args.index("--self-test")
+        return selftest.run(args[i + 1] if i + 1 < len(args) else None)
     app = create_app(argv)
     window = MainWindow(available_modules()[0])
     window.show()
