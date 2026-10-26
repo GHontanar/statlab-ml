@@ -297,3 +297,111 @@ HIGHLIGHT_ALL = "Todos"
 COL_CLUSTER = "cluster"
 COL_SILHOUETTE = "silueta"
 ROLE_LABEL_RESULT = "RESULTADO"
+
+# Sesiones
+SESSION_FILTER = "Sesión de StatLab (*.statlab)"
+SESSION_OPEN = "Abrir sesión…"
+SESSION_SAVE = "Guardar sesión"
+SESSION_SAVE_AS = "Guardar sesión como…"
+SESSION_NOTHING = "No hay nada que guardar todavía: abre un archivo de datos."
+SESSION_INVALID = "El archivo no es una sesión de StatLab válida o está dañado."
+SESSION_NEWER = (
+    "Esta sesión se guardó con una versión más reciente de StatLab ({version}). Actualiza la aplicación "
+    "para abrirla."
+)
+SESSION_OTHER_MODULE = "Esta sesión es de otro tipo de análisis («{modulo}») que esta versión no incluye."
+SESSION_SAVED = (
+    "Sesión guardada en «{name}». El archivo contiene los datos de los pacientes: guárdalo en una ubicación segura."
+)
+SESSION_PRIVACY = (
+    "El archivo de sesión contiene los datos de los pacientes. Guárdalo en una ubicación segura "
+    "(no en carpetas compartidas ni en la nube sin cifrar)."
+)
+SESSION_OPEN_ERROR_TITLE = "No se ha podido abrir la sesión"
+SESSION_SAVE_ERROR_TITLE = "No se ha podido guardar la sesión"
+UNSAVED_TITLE = "Cambios sin guardar"
+UNSAVED_TEXT = "Hay cambios en el análisis que no se han guardado. ¿Quieres guardar la sesión antes?"
+UNSAVED_SAVE = "Guardar"
+UNSAVED_DISCARD = "No guardar"
+UNSAVED_CANCEL = "Cancelar"
+
+# Informe
+REPORT_TITLE = "Informe de clustering k-means"
+REPORT_COVER = "Archivo de datos: {fuente} · {n} filas × {cols} columnas · {n_model} filas en el modelo"
+REPORT_DATE = "Fecha: {fecha} · StatLab {version}"
+REPORT_PRIVACY = (
+    "Este informe no incluye los datos individuales de los pacientes, salvo en forma agregada "
+    "(tablas por cluster y proyección PCA)."
+)
+REPORT_PARAMS = "Parámetros del análisis"
+REPORT_PARAM_HEAD = ["Parámetro", "Valor"]
+REPORT_SWEEP = "Barrido de k"
+REPORT_FINAL = "Modelo final"
+REPORT_FIGURES = "Figuras"
+REPORT_TABLES = "Perfiles, variables descriptivas y estabilidad"
+REPORT_PROFILES = "Perfiles: media (DE) en unidades originales"
+REPORT_SENS = "Sensibilidad a la imputación"
+REPORT_METHODS = "Texto de métodos"
+REPORT_METHODS_NOTE = "Párrafo listo para adaptar en un manuscrito."
+REPORT_VERSIONS = "Versiones del software"
+REPORT_VERSIONS_HEAD = ["Componente", "Versión"]
+REPORT_KPI_HEAD = ["Indicador", "Valor"]
+P_MODEL_VARS = "Variables del modelo"
+P_LOG = "Transformación log(1+x)"
+P_DESCR = "Variables descriptivas"
+P_ID = "Identificador"
+P_ROWS = "Filas analizadas"
+P_MISSING = "Valores perdidos"
+P_SCALING = "Escalado"
+P_RANGE = "Rango de k"
+P_NINIT = "Inicializaciones de k-means"
+P_SEED = "Semilla"
+P_SWEEP_BOOT = "IC bootstrap de la silueta por k"
+P_K = "k elegido"
+P_FINAL_B = "Remuestras bootstrap del modelo final"
+NONE = "ninguna"
+NO = "no"
+YES_B = "sí ({b} remuestras por k)"
+MISSING_KNN_LONG = "KNN, {k} vecinos"
+FIG_ELBOW = "Método del codo: inercia por número de clusters."
+FIG_SIL_K = "Silueta media por k (barras: IC95 % bootstrap)."
+FIG_PCA = "Proyección en las dos primeras componentes principales; rombos: centroides."
+FIG_HEATMAP = "Perfiles de los clusters: medias estandarizadas (z) de cada variable del modelo."
+FIG_SIL_OBS = "Silueta de cada observación, ordenada dentro de cada cluster; línea discontinua: media."
+FIG_JACCARD = "Jaccard medio por cluster con IC95 % bootstrap; referencias en 0,75 y 0,60 (Hennig, 2007)."
+FIG_HIST = "Distribución de la silueta media en las remuestras bootstrap; línea discontinua: modelo final."
+FINAL_REQUIRED = "Ajusta antes el modelo final (paso 5) para poder exportar."
+
+# Paso 6 (exportar)
+EXPORT_CSV = "Tabla con cluster y silueta (CSV)"
+EXPORT_JSON = "Parámetros y resultados (JSON)"
+EXPORT_MD = "Texto de métodos (.md)"
+EXPORT_FIGURES = "Figuras (PNG 300 ppp y SVG)…"
+EXPORT_PDF = "Informe PDF…"
+EXPORT_DOCX = "Informe Word (.docx)…"
+EXPORT_ALL = "Todo en una carpeta…"
+EXPORT_HINT = (
+    "El CSV, el JSON y la carpeta completa contienen los datos de los pacientes: guárdalos en un lugar seguro."
+)
+EXPORT_FOLDER = "Elige una carpeta"
+EXPORT_DONE = "Exportado: {names}"
+EXPORT_DONE_MORE = "{first} y {n} archivo(s) más en «{folder}»"
+EXPORT_LAST = "Último exporte: {names}"
+EXPORT_FILTERS = {
+    "csv": "CSV (*.csv)",
+    "json": "JSON (*.json)",
+    "md": "Markdown (*.md)",
+    "pdf": "PDF (*.pdf)",
+    "docx": "Word (*.docx)",
+}
+EXPORT_NAMES = {
+    "csv": "{base}_datos_con_clusters.csv",
+    "json": "{base}_resultados.json",
+    "md": "{base}_metodos.md",
+    "pdf": "{base}_informe.pdf",
+    "docx": "{base}_informe.docx",
+}
+EXPORT_WRITE_ERROR = (
+    "No se ha podido escribir en «{path}». Comprueba que la carpeta existe, que tienes permiso y que el "
+    "archivo no está abierto en otro programa."
+)

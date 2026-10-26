@@ -14,6 +14,7 @@ from PySide6.QtCore import QObject, QTimer, Signal
 
 from statlab import strings_es as S
 from statlab.core import io as sio
+from statlab.core import session as ses
 from statlab.core.dataset import Cambio, Dataset, Rol
 from statlab.core.errors import ErrorUsuario
 from statlab.core.estado import EstadoSesion
@@ -33,6 +34,7 @@ class SessionController(QObject):
     step_running = Signal(str, bool)
     step_progress = Signal(str, float)
     message = Signal(str)  # aviso para el usuario (rol rechazado, subgrupo guardado…)
+    dirty_changed = Signal(bool)  # hay cambios sin guardar
     focus_requested = Signal(str)  # llevar la vista a un paso de la barra lateral
     rows_selection_requested = Signal(list)  # seleccionar estas filas en la tabla (desde un gráfico)
 
@@ -44,6 +46,12 @@ class SessionController(QObject):
         self._vivas: set[Tarea] = set()  # incluye las canceladas que aún no han terminado
         # Pasos hechos que se han reabierto para editarlos → ¿se ha cambiado algo desde entonces?
         self._reabiertos: dict[str, bool] = {}
+        self.session_path: Path | None = None
+        self.dirty = False
+        self._restoring = False
+        for signal in (self.dataset_changed, self.roles_changed, self.rows_changed, self.flow_changed):
+            signal.connect(self._mark_dirty)
+        self.step_updated.connect(self._mark_dirty)
         self._turnos: dict[str, int] = {}
         self._timers: dict[str, QTimer] = {}
 
@@ -80,10 +88,47 @@ class SessionController(QObject):
             self.cancel(paso)
         self.estado = self.module.crear_estado()
         self._reabiertos.clear()
+        self.session_path = None
         self.estado.dataset = dataset
         self.flujo.completar("datos")
         self.dataset_changed.emit()
         self.flow_changed.emit()
+
+    # --- Sesiones -------------------------------------------------------
+    def _mark_dirty(self, *_args) -> None:
+        if not self._restoring and self.estado.dataset is not None:
+            self._set_dirty(True)
+
+    def _set_dirty(self, dirty: bool) -> None:
+        if dirty != self.dirty:
+            self.dirty = dirty
+            self.dirty_changed.emit(dirty)
+
+    def save_session(self, path: str | Path) -> Path:
+        """Guarda todo en un archivo .statlab. Lanza ErrorUsuario/OSError si no se puede."""
+        guardado = ses.guardar(path, self.estado, self.module.id)
+        self.session_path = guardado
+        self._set_dirty(False)
+        self.message.emit(S.SESSION_SAVED.format(name=guardado.name))
+        return guardado
+
+    def open_session(self, path: str | Path) -> None:
+        """Restaura una sesión sin recalcular nada."""
+        estado = ses.abrir(path, self.module.crear_estado, self.module.id)
+        for paso in list(self._tareas):
+            self.cancel(paso)
+        self._restoring = True
+        try:
+            self.estado = estado
+            self._reabiertos.clear()
+            self.session_path = Path(path)
+            self.dataset_changed.emit()
+            for paso in self.flujo.ids:
+                self.step_updated.emit(paso)
+            self.flow_changed.emit()
+        finally:
+            self._restoring = False
+        self._set_dirty(False)
 
     # --- Columnas -------------------------------------------------------
     def set_role(self, cols: list[str], rol: Rol | None) -> Cambio:
@@ -177,6 +222,24 @@ class SessionController(QObject):
         for timer in self._timers.values():
             timer.stop()
         cancelar_todo(self._vivas)
+
+    def export(self, tipo: str, destino: str | Path) -> None:
+        """Exporta en segundo plano (paso «exportar»). Al terminar, el paso queda hecho."""
+        self.estado.params("exportar").update(tipo=tipo, destino=str(destino))
+        self.run("exportar", on_success=self._exported)
+
+    def _exported(self) -> None:
+        r = self.estado.resultados.get("exportar", {})
+        if "error" in r:
+            self.message.emit(r["error"])
+            return
+        nombres = [Path(a).name for a in r["archivos"]]
+        texto = ", ".join(nombres) if len(nombres) <= 2 else S.EXPORT_DONE_MORE.format(
+            first=nombres[0], n=len(nombres) - 1, folder=Path(r["archivos"][0]).parent.name)
+        self.message.emit(S.EXPORT_DONE.format(names=texto))
+        if self.flujo["exportar"] == EstadoPaso.ACTIVO:
+            self.flujo.completar("exportar")
+            self.flow_changed.emit()
 
     def select_rows(self, rows: list[int]) -> None:
         self.rows_selection_requested.emit(list(rows))
@@ -317,3 +380,5 @@ class SessionController(QObject):
         self.estado.resultados[paso] = {"error": mensaje if esperado else S.CALC_ERROR_DETAIL.format(step=titulo)}
         self.step_updated.emit(paso)
         self.flow_changed.emit()
+        if not self.module.paso(paso).automatico:  # la vista previa ya muestra su error en la tarjeta
+            self.message.emit(self.estado.resultados[paso]["error"])

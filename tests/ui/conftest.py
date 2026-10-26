@@ -9,7 +9,9 @@ from statlab.ui.theme import ThemeMode
 
 
 @pytest.fixture
-def window(qtbot, tmp_path):
+def window(qtbot, tmp_path, monkeypatch):
+    # Sin diálogos modales en los tests: «No guardar» salvo que el test diga otra cosa.
+    monkeypatch.setattr(MainWindow, "_ask_unsaved", lambda self: "discard")
     QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(tmp_path))
     app = create_app([])
     theme.apply_theme(app, ThemeMode.LIGHT)

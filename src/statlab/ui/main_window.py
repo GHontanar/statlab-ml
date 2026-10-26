@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 
 from statlab import __version__
 from statlab import strings_es as S
+from statlab.core import session as ses
 from statlab.core.errors import ErrorUsuario
 from statlab.modules.base import AnalysisModule
 from statlab.ui import theme
@@ -146,7 +147,7 @@ class MainWindow(QMainWindow):
     def __init__(self, module: AnalysisModule, parent: QWidget | None = None):
         super().__init__(parent)
         self.module = module
-        self.setWindowTitle(f"{S.APP_NAME} · {module.nombre}")
+        self.setWindowTitle(f"{S.APP_NAME} · {module.nombre}[*]")
         self.setMinimumSize(1100, 700)
         self.resize(1440, 900)
 
@@ -194,6 +195,8 @@ class MainWindow(QMainWindow):
         self.welcome.open_button.setFocus()
 
         self.header.open_requested.connect(self.open_data)
+        self.header.save_requested.connect(self.save_session)
+        self.session.dirty_changed.connect(self._update_title)
         self.welcome.open_requested.connect(self.open_data)
         self.welcome.example_requested.connect(self.load_example)
         self.sidebar.change_data_requested.connect(self.open_data)
@@ -203,12 +206,18 @@ class MainWindow(QMainWindow):
 
     # --- Datos -----------------------------------------------------------
     def open_data(self) -> None:
+        if not self.maybe_save():
+            return
         start = str(settings().value(SETTINGS_LAST_DIR, ""))
-        path, _ = QFileDialog.getOpenFileName(self, S.OPEN_DIALOG_TITLE, start, S.OPEN_DIALOG_FILTER)
+        filtro = f"{S.OPEN_DIALOG_FILTER};;{S.SESSION_FILTER}"
+        path, _ = QFileDialog.getOpenFileName(self, S.OPEN_DIALOG_TITLE, start, filtro)
         if path:
             self.load_path(path)
 
     def load_path(self, path: str) -> bool:
+        """Abre datos o, si es un .statlab, una sesión."""
+        if Path(path).suffix.lower() == ses.SUFIJO:
+            return self.open_session_path(path)
         try:
             self.session.load_path(path)
         except (ErrorUsuario, OSError) as e:
@@ -219,13 +228,85 @@ class MainWindow(QMainWindow):
         return True
 
     def load_example(self) -> None:
-        self.session.load_example()
+        if self.maybe_save():
+            self.session.load_example()
+
+    # --- Sesiones --------------------------------------------------------
+    def open_session(self) -> None:
+        if not self.maybe_save():
+            return
+        start = str(settings().value(SETTINGS_LAST_DIR, ""))
+        path, _ = QFileDialog.getOpenFileName(self, S.SESSION_OPEN, start, S.SESSION_FILTER)
+        if path:
+            self.open_session_path(path)
+
+    def open_session_path(self, path: str) -> bool:
+        try:
+            self.session.open_session(path)
+        except (ErrorUsuario, OSError) as e:
+            QMessageBox.warning(self, S.SESSION_OPEN_ERROR_TITLE, str(e))
+            return False
+        settings().setValue(SETTINGS_LAST_DIR, str(Path(path).parent))
+        self._update_title()
+        return True
+
+    def save_session(self, save_as: bool = False) -> bool:
+        if self.session.dataset is None:
+            return False
+        path = self.session.session_path
+        if save_as or path is None:
+            start = Path(str(settings().value(SETTINGS_LAST_DIR, "")) or Path.home())
+            name = Path(self.session.dataset.fuente).stem + ses.SUFIJO
+            chosen, _ = QFileDialog.getSaveFileName(self, S.SESSION_SAVE, str(start / name), S.SESSION_FILTER)
+            if not chosen:
+                return False
+            path = Path(chosen)
+        try:
+            saved = self.session.save_session(path)
+        except (ErrorUsuario, OSError) as e:
+            QMessageBox.warning(self, S.SESSION_SAVE_ERROR_TITLE, str(e))
+            return False
+        settings().setValue(SETTINGS_LAST_DIR, str(saved.parent))
+        self._update_title()
+        return True
+
+    def maybe_save(self) -> bool:
+        """Si hay cambios sin guardar, pregunta. Devuelve False si el usuario cancela."""
+        if not self.session.dirty:
+            return True
+        answer = self._ask_unsaved()
+        if answer == "save":
+            return self.save_session()
+        return answer == "discard"
+
+    def _ask_unsaved(self) -> str:
+        """«save», «discard» o «cancel»."""
+        box = QMessageBox(QMessageBox.Icon.Question, S.UNSAVED_TITLE, S.UNSAVED_TEXT, parent=self)
+        save = box.addButton(S.UNSAVED_SAVE, QMessageBox.ButtonRole.AcceptRole)
+        discard = box.addButton(S.UNSAVED_DISCARD, QMessageBox.ButtonRole.DestructiveRole)
+        box.addButton(S.UNSAVED_CANCEL, QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(save)
+        box.exec()
+        if box.clickedButton() is save:
+            return "save"
+        return "discard" if box.clickedButton() is discard else "cancel"
+
+    def _update_title(self, *_args) -> None:
+        name = self.session.session_path.name if self.session.session_path else None
+        base = f"{S.APP_NAME} · {self.module.nombre}"
+        self.setWindowTitle(f"{base} — {name}[*]" if name else f"{base}[*]")
+        self.setWindowModified(self.session.dirty)
+        has_data = self.session.dataset is not None
+        self.header.save_button.setEnabled(has_data)
+        self.action_save.setEnabled(has_data)
+        self.action_save_as.setEnabled(has_data)
 
     def _make_room_for_results(self) -> None:
         total = sum(self.work_splitter.sizes())
         self.work_splitter.setSizes([int(total * 0.35), total - int(total * 0.35)])
 
     def _on_dataset(self) -> None:
+        self._update_title()
         self.data_stack.setCurrentWidget(self.data_panel)
         self.data_panel.table.setFocus()
 
@@ -237,11 +318,19 @@ class MainWindow(QMainWindow):
         self.action_open.triggered.connect(self.open_data)
         self.action_example = QAction(S.TRY_EXAMPLE, self)
         self.action_example.triggered.connect(self.load_example)
+        self.action_open_session = QAction(S.SESSION_OPEN, self)
+        self.action_open_session.triggered.connect(self.open_session)
         self.action_save = QAction(S.SAVE_SESSION, self, shortcut=QKeySequence.StandardKey.Save)
         self.action_save.setEnabled(False)
+        self.action_save.triggered.connect(lambda: self.save_session())
+        self.action_save_as = QAction(S.SESSION_SAVE_AS, self, shortcut=QKeySequence.StandardKey.SaveAs)
+        self.action_save_as.setEnabled(False)
+        self.action_save_as.triggered.connect(lambda: self.save_session(save_as=True))
         action_quit = QAction(S.QUIT, self, shortcut=QKeySequence.StandardKey.Quit)
         action_quit.triggered.connect(self.close)
-        file_menu.addActions([self.action_open, self.action_example, self.action_save])
+        file_menu.addActions([self.action_open, self.action_example])
+        file_menu.addSeparator()
+        file_menu.addActions([self.action_open_session, self.action_save, self.action_save_as])
         file_menu.addSeparator()
         file_menu.addAction(action_quit)
 
@@ -292,6 +381,9 @@ class MainWindow(QMainWindow):
             self._apply_theme(ThemeMode.SYSTEM)
 
     def closeEvent(self, event) -> None:
+        if not self.maybe_save():
+            event.ignore()
+            return
         self.session.shutdown()
         super().closeEvent(event)
 

@@ -6,10 +6,10 @@ Aplicación de escritorio para análisis estadístico clínico. El primer módul
 imputación. Pensada para clínicos: interfaz gráfica, sin escribir código, y
 **sin conexión**: los datos nunca salen del equipo.
 
-> Estado: **M4 · modelo final**. Flujo completo de análisis: datos → roles en la tabla →
-> preprocesado → barrido de k → modelo final validado por bootstrap (KPIs, PCA enlazado
-> con la tabla, perfiles, silueta, estabilidad, sensibilidad a la imputación y
-> descriptivas). Guardar la sesión y exportar llegan en el siguiente hito.
+> Estado: **M5 · sesiones y exportes**. Análisis completo (datos → roles → preprocesado →
+> barrido de k → modelo final) con sesiones `.statlab` que se reabren sin recalcular, y
+> exportes: CSV con cluster y silueta, JSON, texto de métodos, figuras PNG/SVG e informes
+> PDF y Word. Falta el empaquetado con PyInstaller (M6).
 > Plan completo en [`docs/HANDOFF_statlab-desktop.md`](docs/HANDOFF_statlab-desktop.md).
 
 ## Desarrollo
@@ -34,7 +34,8 @@ tests sin pantalla: `QT_QPA_PLATFORM=offscreen uv run pytest`. Con
 src/statlab/
   core/        lógica pura, sin Qt: io.py (lectura), dataset.py (roles y filas),
                flow.py (estados de los pasos), estado.py (estado de la sesión),
-               fmt.py (números en español), kmeans.py (motor)
+               fmt.py (números en español), kmeans.py (motor), session.py (.statlab),
+               report/ (figuras matplotlib, PDF, Word, CSV/JSON/métodos)
   modules/     contrato AnalysisModule (base.py) y módulo kmeans/
   ui/          ventana, tabla de datos, barra lateral, tema (tokens, QSS, Inter, iconos)
   workers.py   cálculos en segundo plano (QThreadPool) con progreso y cancelación

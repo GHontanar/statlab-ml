@@ -9,6 +9,7 @@ from statlab import strings_es as S
 from statlab.core import fmt
 from statlab.core import kmeans as km
 from statlab.core.dataset import Rol
+from statlab.core.errors import ErrorUsuario
 from statlab.core.estado import EstadoSesion
 from statlab.modules.base import (
     AnalysisModule,
@@ -249,6 +250,46 @@ def ajustar(estado: EstadoSesion, progreso: Progreso, cancelar: Cancelar) -> Res
     })
 
 
+def exportar_archivos(modulo: AnalysisModule, estado: EstadoSesion, progreso: Progreso) -> Resultado:
+    from pathlib import Path
+
+    from statlab.core.report import exports as ex
+
+    p = estado.params("exportar")
+    contenido = modulo.exportar(estado)
+    progreso(0.5)
+    base = Path(estado.dataset.fuente).stem or "statlab"
+    try:
+        archivos = ex.escribir(p["tipo"], contenido, p["destino"], base=base)
+    except OSError as e:
+        raise ErrorUsuario(S.EXPORT_WRITE_ERROR.format(path=p["destino"])) from e
+    progreso(1.0)
+    return {"tipo": p["tipo"], "archivos": [str(a) for a in archivos]}
+
+
+def resumen_exportar(estado: EstadoSesion) -> str:
+    r = estado.resultados.get("exportar")
+    if not r or "error" in r:
+        return ""
+    from pathlib import Path
+
+    nombres = [Path(a).name for a in r["archivos"]]
+    texto = nombres[0] if len(nombres) == 1 else S.EXPORT_DONE_MORE.format(
+        first=nombres[0], n=len(nombres) - 1, folder=Path(r["archivos"][0]).parent.name)
+    return S.EXPORT_LAST.format(names=texto)
+
+
+def validar_exportar(estado: EstadoSesion) -> list[str]:
+    r = estado.resultados.get("modelo_final")
+    return [] if r and "error" not in r else [S.FINAL_REQUIRED]
+
+
+def _widget_exportar(controlador: Any):
+    from statlab.modules.kmeans.steps import ExportWidget
+
+    return ExportWidget(controlador)
+
+
 class KMeansModule(AnalysisModule):
     id = "kmeans"
     nombre = S.KMEANS_NAME
@@ -289,6 +330,12 @@ class KMeansModule(AnalysisModule):
             ),
         ]
 
+    def pasos(self) -> list[Paso]:
+        pasos = super().pasos()
+        pasos[-1] = Paso("exportar", S.STEP_EXPORT, calcula=True, parametros={"tipo": "pdf", "destino": ""},
+                         crear_widget=_widget_exportar, resumen=resumen_exportar, validar=validar_exportar)
+        return pasos
+
     def roles_admitidos(self) -> set[Rol]:
         return {Rol.MODELO, Rol.DESCRIPTIVA, Rol.IDENTIFICADOR, Rol.LOG}
 
@@ -301,7 +348,12 @@ class KMeansModule(AnalysisModule):
             return barrer(estado, progreso, cancelar)
         if paso == "modelo_final":
             return ajustar(estado, progreso, cancelar)
+        if paso == "exportar":
+            return exportar_archivos(self, estado, progreso)
         raise NotImplementedError(f"Paso «{paso}» todavía no implementado")
+
+    def tiene_panel(self, paso: str) -> bool:
+        return paso in ("elegir_k", "modelo_final")
 
     def paneles(self, paso: str, resultado: Resultado, controlador: Any) -> list:
         if paso == "elegir_k":
@@ -314,5 +366,7 @@ class KMeansModule(AnalysisModule):
             return [FinalPanel(resultado, controlador)]
         return []
 
-    def exportar(self, resultados: dict[str, Resultado]) -> Exportacion:
-        return Exportacion()
+    def exportar(self, estado: EstadoSesion) -> Exportacion:
+        from statlab.modules.kmeans.report import construir
+
+        return construir(estado)

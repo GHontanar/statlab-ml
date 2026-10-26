@@ -544,3 +544,10 @@ QPushButton#HighlightButton:checked {
     border-color: ${accent};
     color: ${text};
 }
+
+/* --- Exportar --------------------------------------------------------- */
+QPushButton#ExportButton {
+    text-align: left;
+    padding: 0px 12px;
+    min-height: 30px;
+}

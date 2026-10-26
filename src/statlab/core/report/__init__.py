@@ -1,1 +1,1 @@
-"""Informes PDF y Word y figuras exportadas con matplotlib (M5)."""
+"""Exportes e informes (sin Qt): figuras con matplotlib, PDF con reportlab y Word con python-docx."""

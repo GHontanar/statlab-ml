@@ -1,7 +1,16 @@
 """Controles de los pasos propios del módulo k-means."""
 from __future__ import annotations
 
-from PySide6.QtWidgets import QComboBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QComboBox,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QSpinBox,
+    QVBoxLayout,
+    QWidget,
+)
 
 from statlab import strings_es as S
 from statlab.modules.kmeans.module import K_MAX
@@ -302,3 +311,59 @@ class FinalWidget(QWidget):
         if self.k.currentData() is None:
             return
         self.session.set_params(self.PASO, k=int(self.k.currentData()), B=int(self.B.currentData()))
+
+
+class ExportWidget(QWidget):
+    """Paso 6: un botón por exporte; cada uno pide dónde guardar y trabaja en segundo plano."""
+
+    PASO = "exportar"
+    TIPOS = (("pdf", S.EXPORT_PDF), ("docx", S.EXPORT_DOCX), ("figuras", S.EXPORT_FIGURES),
+             ("csv", S.EXPORT_CSV), ("json", S.EXPORT_JSON), ("md", S.EXPORT_MD), ("todo", S.EXPORT_ALL))
+
+    def __init__(self, session: SessionController, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.session = session
+        col = QVBoxLayout(self)
+        col.setContentsMargins(0, 4, 0, 0)
+        col.setSpacing(6)
+        self.buttons: dict[str, QPushButton] = {}
+        for tipo, texto in self.TIPOS:
+            button = QPushButton(texto)
+            button.setObjectName("ExportButton")
+            button.clicked.connect(lambda _=False, t=tipo: self.export(t))
+            col.addWidget(button)
+            self.buttons[tipo] = button
+        self.hint = QLabel(S.EXPORT_HINT)
+        self.hint.setObjectName("Hint")
+        self.hint.setWordWrap(True)
+        col.addWidget(self.hint)
+        session.step_running.connect(lambda p, running: p == self.PASO and self._busy(running))
+
+    def set_compact(self, compact: bool) -> None:
+        """Los botones siguen visibles con el paso hecho: se puede exportar otra vez."""
+        self.hint.setVisible(not compact)
+
+    def _busy(self, running: bool) -> None:
+        for button in self.buttons.values():
+            button.setEnabled(not running)
+
+    def export(self, tipo: str) -> None:
+        destino = self._ask_path(tipo)
+        if destino:
+            self.session.export(tipo, destino)
+
+    def _ask_path(self, tipo: str) -> str:
+        """Diálogo para elegir archivo (o carpeta para «figuras» y «todo»)."""
+        from pathlib import Path
+
+        from PySide6.QtWidgets import QFileDialog
+
+        from statlab.ui.main_window import SETTINGS_LAST_DIR, settings
+
+        start = Path(str(settings().value(SETTINGS_LAST_DIR, "")) or Path.home())
+        if tipo in ("figuras", "todo"):
+            return QFileDialog.getExistingDirectory(self, S.EXPORT_FOLDER, str(start))
+        base = Path(self.session.dataset.fuente).stem or "statlab"
+        nombre = S.EXPORT_NAMES[tipo].format(base=base)
+        path, _ = QFileDialog.getSaveFileName(self, S.STEP_EXPORT, str(start / nombre), S.EXPORT_FILTERS[tipo])
+        return path

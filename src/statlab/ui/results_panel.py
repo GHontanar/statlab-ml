@@ -54,13 +54,15 @@ class ResultsPanel(QFrame):
         """El paso abierto si tiene resultado (p. ej. «Elegir k» reabierto para cambiar k);
         si no, el paso más avanzado con resultado."""
         estado = self.session.estado
+        modulo = self.session.module
         activo = estado.flujo.activo
         r = estado.resultados.get(activo) if activo else None
-        if r and "error" not in r:
+        if r and "error" not in r and modulo.tiene_panel(activo):
             return activo, r
-        for paso in reversed(self.session.module.pasos()):
+        for paso in reversed(modulo.pasos()):
             r = estado.resultados.get(paso.id)
-            if r and "error" not in r and estado.flujo[paso.id] != EstadoPaso.PENDIENTE:
+            if (r and "error" not in r and modulo.tiene_panel(paso.id)
+                    and estado.flujo[paso.id] != EstadoPaso.PENDIENTE):
                 return paso.id, r
         return None
 

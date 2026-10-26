@@ -67,11 +67,15 @@ class Paso:
 
 @dataclass
 class Exportacion:
-    """Lo que un módulo aporta a los exportes e informes."""
+    """Lo que un módulo aporta a los exportes: el informe (bloques en orden), las figuras,
+    la tabla de datos con sus resultados, el JSON de parámetros y resultados, y los métodos."""
 
-    secciones: list[tuple[str, str]] = field(default_factory=list)  # (título, texto)
-    tablas: dict[str, Any] = field(default_factory=dict)  # nombre → DataFrame
-    figuras: dict[str, Any] = field(default_factory=dict)  # nombre → Figure de matplotlib
+    titulo: str = ""
+    bloques: list[Any] = field(default_factory=list)  # statlab.core.report.document.Bloque
+    figuras: dict[str, Any] = field(default_factory=dict)  # nombre de archivo → Figure de matplotlib
+    tabla: Any = None  # DataFrame con los datos y las columnas de resultado
+    json: dict[str, Any] = field(default_factory=dict)
+    metodos: str = ""
 
 
 def _resumen_datos(estado: EstadoSesion) -> str:
@@ -140,11 +144,15 @@ class AnalysisModule(ABC):
         """Cálculo de un paso sobre una copia del estado. Corre en un worker y debe
         respetar `cancelar`. Un ErrorUsuario lleva un mensaje para mostrar tal cual."""
 
+    def tiene_panel(self, paso: str) -> bool:
+        """Si el resultado de este paso se muestra en el panel de resultados."""
+        return False
+
     @abstractmethod
     def paneles(self, paso: str, resultado: Resultado, controlador: Any) -> list[QWidget]:
         """Widgets del panel de resultados de un paso calculado (pueden llamar al controlador,
         p. ej. para elegir k con un clic en un gráfico)."""
 
     @abstractmethod
-    def exportar(self, resultados: dict[str, Resultado]) -> Exportacion:
-        """Secciones, tablas y figuras para los informes."""
+    def exportar(self, estado: EstadoSesion) -> Exportacion:
+        """Informe, figuras, tablas y textos para exportar (sin Qt; puede correr en un worker)."""

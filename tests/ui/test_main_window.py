@@ -8,7 +8,8 @@ from statlab.ui.theme import ThemeMode
 
 
 def test_window_layout(window):
-    assert window.windowTitle() == "StatLab · Clustering k-means"
+    assert window.windowTitle().startswith("StatLab · Clustering k-means")
+    assert not window.header.save_button.isEnabled()
     assert QFontInfo(window.font()).family() == "Inter"
     titles = [c.title.text() for c in window.sidebar.cards.values()]
     assert titles == ["Datos", "Variables y filas", "Preprocesado", "Elegir k", "Modelo final", "Exportar"]
