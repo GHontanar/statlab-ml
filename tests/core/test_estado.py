@@ -54,3 +54,25 @@ def test_preprocess_result_and_summary():
     estado.params("preprocesado")["imputacion"] = "complete"
     r = preprocesar(estado)
     assert r["n_excluidas"] > 0 and r["celdas_imputadas"] == 0
+
+
+def test_sweep_validation_and_k_default():
+    from statlab.modules.kmeans.module import barrer, k_elegido, validar_barrido
+
+    _, estado = _estado()
+    estado.dataset.asignar_rol(MODEL, Rol.MODELO)
+    assert validar_barrido(estado)  # sin preprocesado
+    estado.resultados["preprocesado"] = preprocesar(estado)
+    assert validar_barrido(estado) == []
+    estado.resultados["preprocesado"] = {**estado.resultados["preprocesado"], "n_analizadas": 8}
+    assert "más que el k máximo (8)" in validar_barrido(estado)[0]
+    estado.resultados["preprocesado"] = preprocesar(estado)
+    estado.params("elegir_k").update(bootstrap=False, k_max=4)
+    r = barrer(estado, lambda f: None, lambda: False)
+    assert r["ks"] == [2, 3, 4] and r["boot"] is None
+    estado.resultados["elegir_k"] = r
+    assert k_elegido(estado) == r["mejor"]["silueta"]
+    estado.params("modelo_final")["k"] = 4
+    assert k_elegido(estado) == 4
+    estado.params("modelo_final")["k"] = 7  # fuera del rango calculado
+    assert k_elegido(estado) == r["mejor"]["silueta"]

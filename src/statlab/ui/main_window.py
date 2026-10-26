@@ -26,6 +26,7 @@ from statlab.core.errors import ErrorUsuario
 from statlab.modules.base import AnalysisModule
 from statlab.ui import theme
 from statlab.ui.data_table.panel import DataPanel
+from statlab.ui.results_panel import ResultsPanel
 from statlab.ui.session import SessionController
 from statlab.ui.sidebar.sidebar import Sidebar
 from statlab.ui.theme import ThemeMode, icons
@@ -141,18 +142,6 @@ class WelcomePanel(QFrame):
         col.addStretch(2)
 
 
-class ResultsPanel(QFrame):
-    def __init__(self, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setObjectName("Panel")
-        col = QVBoxLayout(self)
-        col.setContentsMargins(24, 24, 24, 24)
-        empty = QLabel(S.RESULTS_EMPTY)
-        empty.setObjectName("Muted")
-        empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        col.addWidget(empty)
-
-
 class MainWindow(QMainWindow):
     def __init__(self, module: AnalysisModule, parent: QWidget | None = None):
         super().__init__(parent)
@@ -170,7 +159,7 @@ class MainWindow(QMainWindow):
         self.data_stack = QStackedWidget()
         self.data_stack.addWidget(self.welcome)
         self.data_stack.addWidget(self.data_panel)
-        self.results = ResultsPanel()
+        self.results = ResultsPanel(self.session)
 
         self.work_splitter = QSplitter(Qt.Orientation.Vertical)
         self.work_splitter.setChildrenCollapsible(False)
@@ -208,6 +197,7 @@ class MainWindow(QMainWindow):
         self.welcome.open_requested.connect(self.open_data)
         self.welcome.example_requested.connect(self.load_example)
         self.sidebar.change_data_requested.connect(self.open_data)
+        self.results.content_shown.connect(self._make_room_for_results)
         self.session.dataset_changed.connect(self._on_dataset)
         QGuiApplication.styleHints().colorSchemeChanged.connect(self._on_system_scheme)
 
@@ -230,6 +220,10 @@ class MainWindow(QMainWindow):
 
     def load_example(self) -> None:
         self.session.load_example()
+
+    def _make_room_for_results(self) -> None:
+        total = sum(self.work_splitter.sizes())
+        self.work_splitter.setSizes([int(total * 0.35), total - int(total * 0.35)])
 
     def _on_dataset(self) -> None:
         self.data_stack.setCurrentWidget(self.data_panel)
@@ -291,10 +285,15 @@ class MainWindow(QMainWindow):
         theme.apply_theme(QApplication.instance(), mode)
         self.header.refresh_icons()
         self.data_panel.refresh_theme()
+        self.results.refresh(force=True)
 
     def _on_system_scheme(self, *_args) -> None:
         if self.theme_mode() == ThemeMode.SYSTEM:
             self._apply_theme(ThemeMode.SYSTEM)
+
+    def closeEvent(self, event) -> None:
+        self.session.shutdown()
+        super().closeEvent(event)
 
     def _about(self) -> None:
         QMessageBox.about(self, S.ABOUT, S.ABOUT_TEXT.format(version=__version__, qt=qVersion()))

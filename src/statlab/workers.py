@@ -44,19 +44,45 @@ class Tarea(QRunnable):
 
     def run(self) -> None:
         try:
-            resultado = self.fn(self.senales.progreso.emit, self._cancelar.is_set)
+            resultado = self.fn(self._progreso, self._cancelar.is_set)
         except Cancelled:
-            self.senales.cancelado.emit()
+            self._emitir(self.senales.cancelado)
         except ErrorUsuario as e:
-            self.senales.fallido.emit(str(e), True)
+            self._emitir(self.senales.fallido, str(e), True)
+        except _InterfazCerrada:
+            pass
         except Exception as e:  # noqa: BLE001 - se informa sin traza al usuario
             log.exception("Error en un cálculo en segundo plano")
-            self.senales.fallido.emit(repr(e), False)
+            self._emitir(self.senales.fallido, repr(e), False)
         else:
             if self.cancelada:
-                self.senales.cancelado.emit()
+                self._emitir(self.senales.cancelado)
             else:
-                self.senales.terminado.emit(resultado)
+                self._emitir(self.senales.terminado, resultado)
+
+    def _progreso(self, fraccion: float) -> None:
+        try:
+            self.senales.progreso.emit(fraccion)
+        except RuntimeError as e:  # la ventana se ha cerrado durante el cálculo
+            raise _InterfazCerrada from e
+
+    @staticmethod
+    def _emitir(senal, *args) -> None:
+        try:
+            senal.emit(*args)
+        except RuntimeError:
+            pass  # la ventana se ha cerrado: nadie espera ya el resultado
+
+
+class _InterfazCerrada(Exception):
+    pass
+
+
+def cancelar_todo(tareas, espera_ms: int = 5000) -> None:
+    """Cancela las tareas y espera a que el pool se vacíe (al cerrar la aplicación)."""
+    for tarea in list(tareas):
+        tarea.cancelar()
+    QThreadPool.globalInstance().waitForDone(espera_ms)
 
 
 def lanzar(tarea: Tarea) -> Tarea:

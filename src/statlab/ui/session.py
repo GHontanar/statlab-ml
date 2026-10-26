@@ -19,7 +19,7 @@ from statlab.core.errors import ErrorUsuario
 from statlab.core.estado import EstadoSesion
 from statlab.core.flow import EstadoPaso
 from statlab.modules.base import AnalysisModule
-from statlab.workers import Tarea, lanzar
+from statlab.workers import Tarea, cancelar_todo, lanzar
 
 PREVIEW_DELAY_MS = 150
 
@@ -33,6 +33,7 @@ class SessionController(QObject):
     step_running = Signal(str, bool)
     step_progress = Signal(str, float)
     message = Signal(str)  # aviso para el usuario (rol rechazado, subgrupo guardado…)
+    focus_requested = Signal(str)  # llevar la vista a un paso de la barra lateral
 
     def __init__(self, module: AnalysisModule, parent: QObject | None = None):
         super().__init__(parent)
@@ -133,6 +134,9 @@ class SessionController(QObject):
         """Ha cambiado algo de `paso`: los posteriores hechos quedan desactualizados y
         las vistas previas abiertas se recalculan."""
         flujo = self.flujo
+        for p in [paso, *flujo.posteriores(paso)]:
+            if self.running(p) and not self.module.paso(p).automatico:
+                self.cancel(p)  # su resultado ya no correspondería a las entradas
         flujo.invalidar_despues(paso)
         if flujo[paso] == EstadoPaso.HECHO and self.validate(paso):
             flujo.abrir(paso)
@@ -158,6 +162,38 @@ class SessionController(QObject):
         self.flow_changed.emit()
         return True
 
+    def shutdown(self) -> None:
+        """Cancela los cálculos en curso y espera a que terminen (al cerrar la ventana)."""
+        for timer in self._timers.values():
+            timer.stop()
+        cancelar_todo(self._vivas)
+
+    def focus_step(self, paso: str) -> None:
+        self.focus_requested.emit(paso)
+
+    def primary(self, paso: str) -> None:
+        """Botón principal de un paso: calcula y lo da por hecho, o solo lo da por hecho."""
+        definicion = self.module.paso(paso)
+        if not (definicion.calcula and not definicion.automatico):
+            self.complete(paso)
+            return
+        errores = self.validate(paso)
+        if errores:
+            self.message.emit("\n".join(errores))
+            return
+        self.run(paso, on_success=lambda: self._computed(paso))
+
+    def _computed(self, paso: str) -> None:
+        if "error" in self.estado.resultados.get(paso, {}):
+            return
+        estaba = self.flujo[paso]
+        siguiente = self.flujo.completar(paso)
+        if estaba == EstadoPaso.HECHO:
+            self.flujo.invalidar_despues(paso)
+        if siguiente and self.module.paso(siguiente).automatico and siguiente not in self.estado.resultados:
+            self._schedule(siguiente)
+        self.flow_changed.emit()
+
     def reopen(self, paso: str) -> None:
         estaba = self.flujo[paso]
         self.flujo.abrir(paso)
@@ -175,7 +211,7 @@ class SessionController(QObject):
         self.run(paso, on_success=lambda: self._recalculated(paso))
 
     def _recalculated(self, paso: str) -> None:
-        if self.flujo[paso] == EstadoPaso.DESACTUALIZADO and not self.validate(paso):
+        if self.flujo[paso] == EstadoPaso.DESACTUALIZADO and "error" not in self.estado.resultados.get(paso, {}):
             self.flujo.completar(paso)
             self.flow_changed.emit()
 

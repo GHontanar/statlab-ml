@@ -44,7 +44,7 @@ class Sidebar(QScrollArea):
                 card.reopen_requested.connect(self.change_data_requested)
             else:
                 card.reopen_requested.connect(lambda p=paso.id: session.reopen(p))
-            card.primary_clicked.connect(lambda p=paso.id: session.complete(p))
+            card.primary_clicked.connect(lambda p=paso.id: session.primary(p))
             card.recalc_clicked.connect(lambda p=paso.id: session.recalculate(p))
             card.cancel_clicked.connect(lambda p=paso.id: session.cancel(p))
         layout.addStretch(1)
@@ -55,6 +55,7 @@ class Sidebar(QScrollArea):
         session.step_updated.connect(self.refresh)
         session.step_running.connect(self.refresh)
         session.step_progress.connect(lambda p, f: self.cards[p].set_progress(f))
+        session.focus_requested.connect(self.focus_card)
         self.refresh()
 
     def refresh(self, *_args) -> None:
@@ -73,5 +74,14 @@ class Sidebar(QScrollArea):
                 errors,
                 running,
                 can_recalc=paso.calcula,
+                show_progress=running and not paso.automatico,
                 edit_text=S.CHANGE if paso.id == "datos" else S.EDIT,
             )
+
+    def focus_card(self, paso: str) -> None:
+        card = self.cards[paso]
+        self.ensureWidgetVisible(card, 0, 16)
+        if card.primary.isVisible() and card.primary.isEnabled():
+            card.primary.setFocus()
+        else:
+            card.setFocus()

@@ -245,6 +245,19 @@ def sweep_k(
     return pd.DataFrame(rows)
 
 
+def elbow_k(ks: Iterable[int], inertia: Iterable[float]) -> int:
+    """k del «codo»: el punto más alejado (por debajo) de la recta que une el primer y
+    el último punto de la curva de inercia normalizada. Es orientativo."""
+    ks = np.asarray(list(ks), dtype=float)
+    y = np.asarray(list(inertia), dtype=float)
+    if len(ks) < 3:
+        return int(ks[0])
+    x = (ks - ks[0]) / (ks[-1] - ks[0])
+    rango = np.ptp(y)
+    yn = (y - y.min()) / (rango if rango > 0 else 1)
+    return int(ks[int(np.argmax((1 - x) - yn))])
+
+
 def _boot_silhouettes(
     X: np.ndarray, k: int, B: int, n_init: int, seed: int,
     progress: Progress | None = None, should_cancel: ShouldCancel | None = None,

@@ -134,3 +134,8 @@ def test_cancellation_and_progress():
 
 def test_silhouette_exact_up_to_5000():
     assert kc.SILHOUETTE_MAX_N == 5000
+
+
+def test_elbow_k():
+    assert kc.elbow_k([2, 3, 4, 5, 6, 7, 8], [630, 326, 289, 261, 232, 217, 202]) == 3
+    assert kc.elbow_k([2, 3], [10, 5]) == 2

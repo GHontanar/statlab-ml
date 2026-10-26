@@ -174,3 +174,54 @@ PREP_MISSING_OPTIONS = {
     "complete": "Casos completos",
 }
 PREP_SCALING_OPTIONS = {"standard": "z-score", "robust": "Robusto (mediana/RIC)", "none": "Sin escalar"}
+
+# Paso 4 (elegir k)
+SWEEP_RANGE = "Rango de k"
+SWEEP_RANGE_VALUE = "de {lo} a {hi}"
+SWEEP_NINIT = "Inicializaciones"
+SWEEP_SEED = "Semilla"
+SWEEP_BOOT = "IC bootstrap de la silueta por k"
+SWEEP_BOOT_B = "Remuestras por k"
+SWEEP_RUN = "Calcular barrido de k"
+SWEEP_SUMMARY = "k de {lo} a {hi} · {ninit} inicializaciones · semilla {seed}"
+SWEEP_SUMMARY_BOOT = "IC bootstrap: {b} remuestras por k"
+SWEEP_SUMMARY_K = "k elegido: {k}"
+VAL_N_VS_KMAX = "Hay {n} filas analizadas: necesitas más que el k máximo ({k}). Reduce el rango de k."
+VAL_NEED_PREP = "Completa antes el preprocesado."
+HELP_RANGE = (
+    "Cuántos grupos (clusters) se comparan. Se ajusta un modelo para cada k del rango y se comparan "
+    "con varios índices. El máximo es 8."
+)
+HELP_NINIT = (
+    "k-means empieza desde puntos al azar; se repite este número de veces y se queda con la mejor "
+    "solución. 20 es suficiente casi siempre."
+)
+HELP_SEED = "Fija el azar para que el resultado sea idéntico cada vez que se repite el análisis."
+HELP_BOOT = (
+    "Repite el ajuste en remuestras de los pacientes para ver cuánto varía la silueta de cada k. "
+    "Barras de error estrechas indican una estructura estable. Tarda más."
+)
+
+# Panel de resultados del barrido
+BEST_K_TITLE = "Mejor k según cada índice"
+BEST_K_SIL = "Silueta: k = {k}"
+BEST_K_CH = "Calinski-Harabasz: k = {k}"
+BEST_K_DB = "Davies-Bouldin: k = {k}"
+BEST_K_ELBOW = "Codo ≈ {k}"
+CHART_ELBOW = "Método del codo"
+CHART_SIL = "Silueta media por k"
+AXIS_K = "Número de clusters (k)"
+AXIS_INERTIA = "Inercia (suma de cuadrados intra)"
+AXIS_SIL = "Silueta media"
+TIP_ELBOW = "k = {k}\nInercia = {v}\nClic para elegir este k"
+TIP_SIL = "k = {k}\nSilueta = {v}{ic}\nClic para elegir este k"
+TIP_IC = " (IC95 % {lo}–{hi})"
+INDEX_TABLE_HEAD = ["k", "Inercia", "Silueta", "IC95 % silueta", "Calinski-Harabasz", "Davies-Bouldin",
+                    "Tamaño mín."]
+INDEX_TABLE_NOTE = "Silueta y Calinski-Harabasz: mayor es mejor. Davies-Bouldin: menor es mejor."
+CONTINUE_FINAL_TITLE = "Continuar con el modelo final"
+CONTINUE_FINAL_BODY = (
+    "k elegido: {k}. Haz clic en un punto de cualquiera de los dos gráficos para cambiarlo."
+)
+CONTINUE_FINAL_BUTTON = "Ir al modelo final"
+RESULTS_STALE = "Estos resultados están desactualizados: recalcula el paso en la barra lateral."

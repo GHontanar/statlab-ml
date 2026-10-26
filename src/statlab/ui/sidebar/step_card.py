@@ -141,6 +141,7 @@ class StepCard(QFrame):
         errors: list[str],
         running: bool,
         can_recalc: bool,
+        show_progress: bool = False,
         edit_text: str = S.EDIT,
     ) -> None:
         self.set_state(state)
@@ -164,7 +165,9 @@ class StepCard(QFrame):
         stale = state == EstadoPaso.DESACTUALIZADO
         self.stale_note.setVisible(stale)
         self.recalc_button.setVisible(stale and can_recalc and not running)
-        self.running_box.setVisible(running and not active)
+        if show_progress and not self.running_box.isVisible():
+            self.progress.setRange(0, 0)  # indeterminada hasta el primer avance
+        self.running_box.setVisible(show_progress)
         self.errors.setText("\n".join(errors))
         self.errors.setVisible(active and bool(errors) and not running)
         self.primary.setVisible(active and self.has_primary)

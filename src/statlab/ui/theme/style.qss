@@ -102,6 +102,11 @@ QPushButton[variant="primary"]:hover {
     background: ${accent_hover};
     border-color: ${accent_hover};
 }
+QPushButton[variant="primary"]:disabled {
+    background: ${border};
+    border-color: ${border};
+    color: ${text_muted};
+}
 QPushButton:focus {
     outline: none;
     border: 2px solid ${accent};
@@ -427,4 +432,60 @@ QSpinBox::down-arrow {
 }
 QSpinBox::up-button:hover, QSpinBox::down-button:hover {
     background: ${accent_soft};
+}
+
+/* --- Panel de resultados --------------------------------------------- */
+QScrollArea#ResultsScroll, QWidget#ResultsContent {
+    background: ${panel};
+    border: none;
+    border-radius: ${radius_panel}px;
+}
+QLabel#StaleBanner {
+    background: ${stale_soft};
+    color: ${stale};
+    border-bottom: 1px solid ${stale};
+    border-top-left-radius: ${radius_panel}px;
+    border-top-right-radius: ${radius_panel}px;
+    padding: 8px 16px;
+    font-size: 12px;
+}
+QLabel#SectionTitle {
+    font-weight: 600;
+}
+QLabel#KChip {
+    background: ${accent_soft};
+    color: ${role_model_fg};
+    border-radius: 11px;
+    padding: 3px 10px;
+    font-size: 12px;
+    font-weight: 500;
+}
+QFrame#ChartBox {
+    background: ${panel};
+    border: 1px solid ${border};
+    border-radius: ${radius_card}px;
+}
+QLabel#ChartTitle {
+    font-weight: 600;
+    color: ${text};
+}
+QFrame#InfoCard {
+    background: ${accent_soft};
+    border: 1px solid ${border};
+    border-radius: ${radius_card}px;
+}
+QTableWidget#IndexTable {
+    background: ${panel};
+    border: 1px solid ${border};
+    border-radius: ${radius_field}px;
+    gridline-color: ${gridline};
+}
+QTableWidget#IndexTable QHeaderView::section {
+    background: ${header_cell};
+    color: ${text_secondary};
+    border: none;
+    border-bottom: 1px solid ${border};
+    padding: 5px 8px;
+    font-weight: 600;
+    font-size: 12px;
 }

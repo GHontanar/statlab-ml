@@ -141,8 +141,9 @@ class AnalysisModule(ABC):
         respetar `cancelar`. Un ErrorUsuario lleva un mensaje para mostrar tal cual."""
 
     @abstractmethod
-    def paneles(self, paso: str, resultado: Resultado) -> list[QWidget]:
-        """Widgets del panel de resultados para un paso calculado."""
+    def paneles(self, paso: str, resultado: Resultado, controlador: Any) -> list[QWidget]:
+        """Widgets del panel de resultados de un paso calculado (pueden llamar al controlador,
+        p. ej. para elegir k con un clic en un gráfico)."""
 
     @abstractmethod
     def exportar(self, resultados: dict[str, Resultado]) -> Exportacion:

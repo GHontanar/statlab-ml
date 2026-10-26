@@ -4,8 +4,11 @@ from __future__ import annotations
 from PySide6.QtWidgets import QComboBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget
 
 from statlab import strings_es as S
+from statlab.modules.kmeans.module import K_MAX
 from statlab.ui.session import SessionController
 from statlab.ui.widgets.help import HelpButton
+from statlab.ui.widgets.range_slider import RangeSlider
+from statlab.ui.widgets.toggle import Toggle
 
 PASO = "preprocesado"
 
@@ -43,6 +46,7 @@ class PreprocessWidget(QWidget):
         self.missing = _combo(S.PREP_MISSING_OPTIONS)
         self.neighbors = QSpinBox()
         self.neighbors.setRange(1, 15)
+        self.neighbors.setFixedWidth(80)
         self.scaling = _combo(S.PREP_SCALING_OPTIONS)
 
         grid = QGridLayout()
@@ -130,3 +134,107 @@ class PreprocessWidget(QWidget):
         )
         self.warnings.setText("\n".join(f"• {w}" for w in r["avisos"]))
         self.warnings.setVisible(bool(r["avisos"]))
+
+
+class SweepWidget(QWidget):
+    """Paso 4: rango de k, inicializaciones, semilla e IC bootstrap de la silueta."""
+
+    PASO = "elegir_k"
+
+    def __init__(self, session: SessionController, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.session = session
+
+        self.range = RangeSlider(2, K_MAX)
+        self.range_value = QLabel()
+        self.range_value.setObjectName("StepResult")
+        range_head = QHBoxLayout()
+        range_head.setContentsMargins(0, 0, 0, 0)
+        range_head.addWidget(_label(S.SWEEP_RANGE, S.HELP_RANGE), 1)
+        range_head.addWidget(self.range_value)
+
+        self.n_init = QSpinBox()
+        self.n_init.setRange(1, 200)
+        self.seed = QSpinBox()
+        self.seed.setRange(0, 999_999)
+        self.boot = Toggle()
+        self.boot.setAccessibleName(S.SWEEP_BOOT)
+        boot_label = QLabel(S.SWEEP_BOOT)
+        boot_label.setWordWrap(True)
+        boot_label.setBuddy(self.boot)
+        boot_row = QHBoxLayout()
+        boot_row.setContentsMargins(0, 0, 0, 0)
+        boot_row.setSpacing(8)
+        boot_row.addWidget(self.boot)
+        boot_row.addWidget(boot_label, 1)
+        boot_row.addWidget(HelpButton(S.HELP_BOOT))
+        self.B = QSpinBox()
+        self.B.setRange(20, 200)
+        self.B.setSingleStep(10)
+        for spin in (self.n_init, self.seed, self.B):
+            spin.setFixedWidth(80)  # la barra lateral es estrecha
+        self.B_label = _label(S.SWEEP_BOOT_B, S.HELP_BOOT)
+
+        grid = QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(8)
+        grid.setVerticalSpacing(6)
+        grid.addWidget(_label(S.SWEEP_NINIT, S.HELP_NINIT), 0, 0)
+        grid.addWidget(self.n_init, 0, 1)
+        grid.addWidget(_label(S.SWEEP_SEED, S.HELP_SEED), 1, 0)
+        grid.addWidget(self.seed, 1, 1)
+        grid.addLayout(boot_row, 2, 0, 1, 2)
+        grid.addWidget(self.B_label, 3, 0)
+        grid.addWidget(self.B, 3, 1)
+        grid.setColumnStretch(0, 1)
+
+        col = QVBoxLayout(self)
+        col.setContentsMargins(0, 4, 0, 0)
+        col.setSpacing(8)
+        col.addLayout(range_head)
+        col.addWidget(self.range)
+        col.addLayout(grid)
+
+        self.range.range_changed.connect(self._changed)
+        for spin in (self.n_init, self.seed, self.B):
+            spin.valueChanged.connect(self._changed)
+        self.boot.toggled.connect(self._changed)
+        session.dataset_changed.connect(self._load_params)
+        session.step_updated.connect(lambda p: p == self.PASO and self._load_params())
+        self._load_params()
+
+    def _widgets(self):
+        return (self.range, self.n_init, self.seed, self.boot, self.B)
+
+    def _load_params(self) -> None:
+        p = self.session.params(self.PASO)
+        for w in self._widgets():
+            w.blockSignals(True)
+        self.range.set_values(p["k_min"], p["k_max"], emit=False)
+        self.n_init.setValue(int(p["n_init"]))
+        self.seed.setValue(int(p["semilla"]))
+        self.boot.setChecked(bool(p["bootstrap"]))
+        self.B.setValue(int(p["B"]))
+        for w in self._widgets():
+            w.blockSignals(False)
+        self._sync()
+
+    def _sync(self) -> None:
+        lo, hi = self.range.values()
+        self.range_value.setText(S.SWEEP_RANGE_VALUE.format(lo=lo, hi=hi))
+        self.B.setVisible(self.boot.isChecked())
+        self.B_label.setVisible(self.boot.isChecked())
+        self.boot.update()
+
+    def _changed(self, *_args) -> None:
+        self._sync()
+        lo, hi = self.range.values()
+        self.session.set_params(
+            self.PASO,
+            k_min=lo,
+            k_max=hi,
+            n_init=self.n_init.value(),
+            semilla=self.seed.value(),
+            bootstrap=self.boot.isChecked(),
+            B=self.B.value(),
+        )
