@@ -14,6 +14,7 @@ from statlab import strings_es as S
 from statlab.core.dataset import Rol
 from statlab.ui import theme
 from statlab.ui.data_table.model import (
+    RESULT,
     ROLE_COLUMN_LOG,
     ROLE_COLUMN_ROLE,
     ROLE_LABELS,
@@ -125,7 +126,9 @@ class RoleHeader(QHeaderView):
         chip_font = _chip_font(self.font())
         y = rect.top() + 31
         x = rect.left() + PAD_X
-        if rol in _ROLE_COLORS:
+        if rol == RESULT:
+            _draw_chip(painter, x, y, S.ROLE_LABEL_RESULT, t["accent"], t["accent_text"], chip_font)
+        elif rol in _ROLE_COLORS:
             bg_key, fg_key = _ROLE_COLORS[rol]
             x += _draw_chip(painter, x, y, ROLE_LABELS[rol], t[bg_key], t[fg_key], chip_font) + 4
             if log:

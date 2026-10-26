@@ -49,3 +49,12 @@ def test_reopen():
         f.abrir("final")
     g = FlujoPasos.from_dict(IDS, f.to_dict())
     assert g.to_dict() == f.to_dict()
+
+
+def test_own_params_change_marks_step_stale():
+    f = FlujoPasos(IDS)
+    for p in IDS[:5]:
+        f.completar(p)
+    assert f.activo == "exportar"
+    f.desactualizar("final")
+    assert f["final"] == E.DESACTUALIZADO and f["exportar"] == E.PENDIENTE

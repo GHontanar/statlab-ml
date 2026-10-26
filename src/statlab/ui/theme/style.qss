@@ -489,3 +489,58 @@ QTableWidget#IndexTable QHeaderView::section {
     font-weight: 600;
     font-size: 12px;
 }
+
+/* --- Modelo final ---------------------------------------------------- */
+QFrame#KpiCard {
+    background: ${panel};
+    border: 1px solid ${border};
+    border-radius: ${radius_card}px;
+}
+QLabel#KpiTitle {
+    color: ${text_secondary};
+    font-size: 12px;
+    font-weight: 500;
+}
+QLabel#KpiValue {
+    font-size: 22px;
+    font-weight: 600;
+    color: ${text};
+}
+QLabel#KpiNote {
+    color: ${text_muted};
+    font-size: 11px;
+}
+QLabel#SizesLine {
+    color: ${text_secondary};
+}
+QTabWidget#ResultTabs::pane {
+    border: none;
+    border-top: 1px solid ${border};
+}
+QTabWidget#ResultTabs QTabBar::tab {
+    background: transparent;
+    color: ${text_secondary};
+    padding: 8px 14px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-weight: 500;
+}
+QTabWidget#ResultTabs QTabBar::tab:selected {
+    color: ${text};
+    border-bottom: 2px solid ${accent};
+    font-weight: 600;
+}
+QTabWidget#ResultTabs QTabBar::tab:hover {
+    color: ${accent};
+}
+QPushButton#HighlightButton {
+    min-height: 24px;
+    padding: 0px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+QPushButton#HighlightButton:checked {
+    background: ${accent_soft};
+    border-color: ${accent};
+    color: ${text};
+}

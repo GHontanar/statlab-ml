@@ -71,10 +71,16 @@ class FlujoPasos:
                 self.estados[i] = EstadoPaso.PENDIENTE
         self.estados[paso] = EstadoPaso.ACTIVO
 
+    def desactualizar(self, paso: str) -> None:
+        """Un paso hecho cuyos parámetros han cambiado: conserva el resultado, marcado."""
+        if self.estados[paso] == EstadoPaso.HECHO:
+            self.estados[paso] = EstadoPaso.DESACTUALIZADO
+            self.invalidar_despues(paso)
+
     def invalidar_despues(self, paso: str) -> list[str]:
         """Un cambio en `paso` deja desactualizados los pasos posteriores ya hechos."""
         cambiados = []
-        hay_desactualizado = False
+        hay_desactualizado = self.estados[paso] == EstadoPaso.DESACTUALIZADO
         for i in self.posteriores(paso):
             if self.estados[i] == EstadoPaso.HECHO:
                 self.estados[i] = EstadoPaso.DESACTUALIZADO

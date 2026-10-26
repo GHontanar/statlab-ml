@@ -23,6 +23,8 @@ ROLE_COLUMN_ROLE = Qt.ItemDataRole.UserRole + 1  # Rol | None
 ROLE_COLUMN_LOG = Qt.ItemDataRole.UserRole + 2  # bool
 ROLE_SORT = Qt.ItemDataRole.UserRole + 3  # Qt.SortOrder | None
 ROLE_ROW_ACTIVE = Qt.ItemDataRole.UserRole + 4  # bool
+ROLE_CLUSTER = Qt.ItemDataRole.UserRole + 5  # int (−1 si la fila no entró en el modelo)
+RESULT = "result"  # «rol» de las columnas que añade el modelo final
 
 _Index = QModelIndex | QPersistentModelIndex
 _ROOT = QModelIndex()
@@ -50,13 +52,18 @@ class DataFrameModel(QAbstractTableModel):
         self._na_font.setItalic(True)
         self._inactive_font = QFont()
         self._inactive_font.setStrikeOut(True)
+        # Columnas de resultado (cluster, silueta), delante de las de los datos
+        self._extra: list[str] = []
+        self._cluster = np.full(len(df), -1)
+        self._sil = np.full(len(df), np.nan)
+        self.highlight: int | None = None
 
     # --- Tamaño ---------------------------------------------------------
     def rowCount(self, parent: _Index = _ROOT) -> int:
         return 0 if parent.isValid() else len(self._order)
 
     def columnCount(self, parent: _Index = _ROOT) -> int:
-        return 0 if parent.isValid() else len(self._text)
+        return 0 if parent.isValid() else len(self._extra) + len(self._text)
 
     # --- Traducción vista ↔ datos ---------------------------------------
     def source_row(self, view_row: int) -> int:
@@ -66,13 +73,87 @@ class DataFrameModel(QAbstractTableModel):
         return int(np.flatnonzero(self._order == source_row)[0])
 
     def column_name(self, col: int) -> str:
-        return self.dataset.columnas[col]
+        n = len(self._extra)
+        return self._extra[col] if col < n else self.dataset.columnas[col - n]
 
     def column_index(self, name: str) -> int:
-        return self.dataset.columnas.index(name)
+        if name in self._extra:
+            return self._extra.index(name)
+        return self.dataset.columnas.index(name) + len(self._extra)
+
+    def is_result_column(self, col: int) -> bool:
+        return col < len(self._extra)
 
     def cell_text(self, view_row: int, col: int) -> str:
-        return self._text[col][self._order[view_row]]
+        src = self._order[view_row]
+        if self.is_result_column(col):
+            return self._result_text(col, src)
+        return self._text[col - len(self._extra)][src]
+
+    def _result_text(self, col: int, src: int) -> str:
+        if self._extra[col] == S.COL_CLUSTER:
+            c = self._cluster[src]
+            return f"C{c + 1}" if c >= 0 else "—"
+        v = self._sil[src]
+        return "—" if np.isnan(v) else fmt.num(v, 3)
+
+    # --- Resultados del modelo ------------------------------------------
+    def set_results(self, rows: list[int], labels: list[int], silhouettes: list[float]) -> None:
+        self.beginResetModel()
+        self._cluster = np.full(self.dataset.n_filas, -1)
+        self._sil = np.full(self.dataset.n_filas, np.nan)
+        self._cluster[rows] = labels
+        self._sil[rows] = silhouettes
+        self._extra = [S.COL_CLUSTER, S.COL_SILHOUETTE]
+        self._sort = None
+        self._order = np.arange(self.dataset.n_filas)
+        if self.highlight is not None and self.highlight > max(labels, default=-1):
+            self.highlight = None
+        self.endResetModel()
+
+    def clear_results(self) -> None:
+        if not self._extra:
+            return
+        self.beginResetModel()
+        self._extra = []
+        self.highlight = None
+        self._sort = None
+        self._order = np.arange(self.dataset.n_filas)
+        self.endResetModel()
+
+    @property
+    def has_results(self) -> bool:
+        return bool(self._extra)
+
+    def set_highlight(self, cluster: int | None) -> None:
+        self.highlight = cluster
+        self.dataChanged.emit(self.index(0, 0), self.index(self.rowCount() - 1, self.columnCount() - 1))
+
+    def _result_data(self, col: int, src: int, role: int):
+        if role == Qt.ItemDataRole.DisplayRole:
+            return self._result_text(col, src)
+        if role == ROLE_CLUSTER and self._extra[col] == S.COL_CLUSTER:
+            return int(self._cluster[src])
+        if role == Qt.ItemDataRole.TextAlignmentRole:
+            h = Qt.AlignmentFlag.AlignLeft if self._extra[col] == S.COL_CLUSTER else Qt.AlignmentFlag.AlignRight
+            return int(h | Qt.AlignmentFlag.AlignVCenter)
+        t = tk.tokens(theme.is_dark())
+        if role == Qt.ItemDataRole.ForegroundRole:
+            if self.highlight is not None and self._cluster[src] != self.highlight:
+                return QColor(t["text_muted"])
+            v = self._sil[src]
+            negative = self._extra[col] == S.COL_SILHOUETTE and not np.isnan(v) and v < 0
+            return QColor(t["na_text"] if negative else t["text_body"])
+        if role == Qt.ItemDataRole.BackgroundRole:
+            return self._highlight_brush(src)
+        return None
+
+    def _highlight_brush(self, src: int):
+        if self.highlight is None or self._cluster[src] != self.highlight:
+            return None
+        color = QColor(tk.SERIES[self.highlight])
+        color.setAlpha(40)
+        return color
 
     # --- Datos ----------------------------------------------------------
     def data(self, index: _Index, role: int = Qt.ItemDataRole.DisplayRole):
@@ -80,6 +161,9 @@ class DataFrameModel(QAbstractTableModel):
             return None
         col = index.column()
         src = self._order[index.row()]
+        if self.is_result_column(col):
+            return self._result_data(col, int(src), role)
+        col -= len(self._extra)
         is_na = self._na[src, col]
         if role == Qt.ItemDataRole.DisplayRole:
             return "NA" if is_na else self._text[col][src]
@@ -88,14 +172,18 @@ class DataFrameModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.TextAlignmentRole:
             h = Qt.AlignmentFlag.AlignRight if self._numeric[col] else Qt.AlignmentFlag.AlignLeft
             return int(h | Qt.AlignmentFlag.AlignVCenter)
+        dimmed = self.highlight is not None and self._cluster[src] != self.highlight
         if role == Qt.ItemDataRole.ForegroundRole:
-            if not active:
+            if not active or dimmed:
                 return QColor(t["text_muted"])
             return QColor(t["na_text"] if is_na else t["text_body"])
         if role == Qt.ItemDataRole.BackgroundRole:
             if is_na:
                 return QColor(t["na_bg"])
-            if self.dataset.roles.get(self.column_name(col)) == Rol.MODELO:
+            highlighted = self._highlight_brush(int(src))
+            if highlighted is not None:
+                return highlighted
+            if self.dataset.roles.get(self.dataset.columnas[col]) == Rol.MODELO:
                 return QColor(t["role_model_tint"])
             return None
         if role == Qt.ItemDataRole.FontRole:
@@ -111,7 +199,7 @@ class DataFrameModel(QAbstractTableModel):
             if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.ToolTipRole):
                 return name
             if role == ROLE_COLUMN_ROLE:
-                return self.dataset.roles.get(name)
+                return RESULT if self.is_result_column(section) else self.dataset.roles.get(name)
             if role == ROLE_COLUMN_LOG:
                 return name in self.dataset.log
             if role == ROLE_SORT:
@@ -131,7 +219,12 @@ class DataFrameModel(QAbstractTableModel):
             self._order = np.arange(self.dataset.n_filas)
             self._sort = None
         else:
-            series = self.dataset.df.iloc[:, column]
+            if self.is_result_column(column) and self._extra[column] == S.COL_CLUSTER:
+                series = pd.Series(np.where(self._cluster < 0, np.nan, self._cluster.astype(float)))
+            elif self.is_result_column(column):
+                series = pd.Series(self._sil)
+            else:
+                series = self.dataset.df.iloc[:, column - len(self._extra)]
             asc = order == Qt.SortOrder.AscendingOrder
             # Los NA siempre al final; orden estable para empates.
             self._order = series.sort_values(ascending=asc, na_position="last", kind="stable").index.to_numpy()

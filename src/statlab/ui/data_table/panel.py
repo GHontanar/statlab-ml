@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QInputDialog,
     QLabel,
     QMenu,
+    QPushButton,
     QTableView,
     QVBoxLayout,
     QWidget,
@@ -27,7 +28,9 @@ from PySide6.QtWidgets import (
 
 from statlab import strings_es as S
 from statlab.core.dataset import Rol, column_summary
+from statlab.ui import clusters as cl
 from statlab.ui import theme
+from statlab.ui.data_table.delegates import ClusterDelegate
 from statlab.ui.data_table.float_bars import ColumnBar, RowBar
 from statlab.ui.data_table.headers import PAD_X, RoleHeader, RowHeader
 from statlab.ui.data_table.model import DataFrameModel
@@ -128,8 +131,17 @@ class DataPanel(QFrame):
         top.addWidget(self.title)
         top.addWidget(self.na_label)
         top.addStretch(1)
+        self.highlight_bar = QWidget()
+        self.highlight_row = QHBoxLayout(self.highlight_bar)
+        self.highlight_row.setContentsMargins(0, 0, 0, 0)
+        self.highlight_row.setSpacing(4)
+        self.highlight_buttons: list[QPushButton] = []
+        self.highlight_bar.hide()
+        top.addWidget(self.highlight_bar)
 
         self.table = DataTableView()
+        self._cluster_delegate = ClusterDelegate(self.table)
+        self._results_key = None
         col = QVBoxLayout(self)
         col.setContentsMargins(1, 0, 1, 1)
         col.setSpacing(0)
@@ -167,6 +179,9 @@ class DataPanel(QFrame):
         session.roles_changed.connect(self._on_roles)
         session.rows_changed.connect(self._on_rows)
         session.message.connect(self.show_message)
+        session.step_updated.connect(lambda p: p == "modelo_final" and self._sync_results())
+        session.flow_changed.connect(self._sync_results)
+        session.rows_selection_requested.connect(self.select_and_show_rows)
 
     # --- Datos -----------------------------------------------------------
     def _on_dataset(self) -> None:
@@ -178,11 +193,70 @@ class DataPanel(QFrame):
             old.deleteLater()
         self.table.selectionModel().selectionChanged.connect(self._update_bars)
         self.table.fit_columns()
+        self._results_key = None
+        self._build_highlight_bar(0)
         self.title.setText(S.DATA_SUMMARY.format(name=ds.fuente, rows=ds.n_filas, cols=len(ds.columnas)))
         na = self.model.na_count()
         self.na_label.setText(S.DATA_NA.format(n=na))
         self.na_label.setVisible(na > 0)
         self._update_bars()
+
+    # --- Resultados del modelo final ------------------------------------
+    def _sync_results(self) -> None:
+        """Añade (o quita) las columnas cluster y silueta según el resultado del modelo final."""
+        if self.model is None:
+            return
+        r = self.session.estado.resultados.get("modelo_final")
+        key = id(r) if r and "error" not in r else None
+        if key == self._results_key:
+            return
+        self._results_key = key
+        if key is None:
+            self.model.clear_results()
+            self.table.setItemDelegateForColumn(0, None)
+            self._build_highlight_bar(0)
+        else:
+            self.model.set_results(r["filas"], r["etiquetas"], r["silueta_obs"])
+            self.table.setItemDelegateForColumn(0, self._cluster_delegate)
+            self._build_highlight_bar(r["k"])
+        self.table.fit_columns()
+
+    def _build_highlight_bar(self, k: int) -> None:
+        while self.highlight_row.count():
+            item = self.highlight_row.takeAt(0)
+            if item.widget():
+                item.widget().hide()
+                item.widget().deleteLater()
+        self.highlight_buttons = []
+        self.highlight_bar.setVisible(k > 0)
+        if k == 0:
+            return
+        label = QLabel(S.HIGHLIGHT)
+        label.setObjectName("FieldLabel")
+        self.highlight_row.addWidget(label)
+        for c in [*range(k), None]:
+            text = f"{cl.glyph(c)} {cl.name(c)}" if c is not None else S.HIGHLIGHT_ALL
+            button = QPushButton(text)
+            button.setObjectName("HighlightButton")
+            button.setCheckable(True)
+            button.setChecked(c is None)
+            button.clicked.connect(lambda _=False, c=c: self.set_highlight(c))
+            self.highlight_row.addWidget(button)
+            self.highlight_buttons.append(button)
+
+    def set_highlight(self, cluster: int | None) -> None:
+        self.model.set_highlight(cluster)
+        last = len(self.highlight_buttons) - 1
+        for i, b in enumerate(self.highlight_buttons):
+            b.setChecked(i == (last if cluster is None else cluster))
+
+    def select_and_show_rows(self, rows: list[int]) -> None:
+        """Selección hecha desde un gráfico (clic o lazo en el PCA)."""
+        if self.model is None or not rows:
+            return
+        self.select_rows(rows)
+        first = min(self.model.view_row(r) for r in rows)
+        self.table.scrollTo(self.model.index(first, 0))
 
     def show_message(self, text: str) -> None:
         self.toast.show_message(text)
@@ -205,7 +279,8 @@ class DataPanel(QFrame):
         if self.model is None:
             return []
         cols = sorted(i.column() for i in self.table.selectionModel().selectedColumns())
-        return [self.model.column_name(c) for c in cols]
+        # Las columnas de resultado (cluster, silueta) no tienen rol
+        return [self.model.column_name(c) for c in cols if not self.model.is_result_column(c)]
 
     def selected_rows(self) -> list[int]:
         if self.model is None:
@@ -282,6 +357,12 @@ class DataPanel(QFrame):
 
     def build_header_menu(self, logical: int) -> QMenu:
         """Menú de rol de una columna (selecciona la columna si no lo estaba)."""
+        if self.model.is_result_column(logical):
+            menu = QMenu(self)
+            menu.addAction(S.SORT_ASC, lambda: self._sort(logical, Qt.SortOrder.AscendingOrder))
+            menu.addAction(S.SORT_DESC, lambda: self._sort(logical, Qt.SortOrder.DescendingOrder))
+            menu.addAction(S.SORT_CLEAR, lambda: self._sort(-1, Qt.SortOrder.AscendingOrder))
+            return menu
         name = self.model.column_name(logical)
         if name not in self.selected_columns():
             self.table.selectColumn(logical)

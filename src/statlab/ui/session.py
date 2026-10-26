@@ -34,6 +34,7 @@ class SessionController(QObject):
     step_progress = Signal(str, float)
     message = Signal(str)  # aviso para el usuario (rol rechazado, subgrupo guardado…)
     focus_requested = Signal(str)  # llevar la vista a un paso de la barra lateral
+    rows_selection_requested = Signal(list)  # seleccionar estas filas en la tabla (desde un gráfico)
 
     def __init__(self, module: AnalysisModule, parent: QObject | None = None):
         super().__init__(parent)
@@ -41,6 +42,8 @@ class SessionController(QObject):
         self.estado: EstadoSesion = module.crear_estado()
         self._tareas: dict[str, Tarea] = {}
         self._vivas: set[Tarea] = set()  # incluye las canceladas que aún no han terminado
+        # Pasos hechos que se han reabierto para editarlos → ¿se ha cambiado algo desde entonces?
+        self._reabiertos: dict[str, bool] = {}
         self._turnos: dict[str, int] = {}
         self._timers: dict[str, QTimer] = {}
 
@@ -76,6 +79,7 @@ class SessionController(QObject):
         for paso in list(self._tareas):
             self.cancel(paso)
         self.estado = self.module.crear_estado()
+        self._reabiertos.clear()
         self.estado.dataset = dataset
         self.flujo.completar("datos")
         self.dataset_changed.emit()
@@ -138,8 +142,13 @@ class SessionController(QObject):
             if self.running(p) and not self.module.paso(p).automatico:
                 self.cancel(p)  # su resultado ya no correspondería a las entradas
         flujo.invalidar_despues(paso)
+        if paso in self._reabiertos:
+            self._reabiertos[paso] = True
+        definicion = self.module.paso(paso)
         if flujo[paso] == EstadoPaso.HECHO and self.validate(paso):
             flujo.abrir(paso)
+        elif flujo[paso] == EstadoPaso.HECHO and definicion.calcula and not definicion.automatico:
+            flujo.desactualizar(paso)  # su propio resultado ya no corresponde a los parámetros
         for p in [paso, *flujo.posteriores(paso)]:
             if flujo[p] == EstadoPaso.ACTIVO and self.module.paso(p).automatico:
                 self._schedule(p)
@@ -156,6 +165,7 @@ class SessionController(QObject):
             if errores:
                 self.message.emit("\n".join(errores))
             return False
+        self._reabiertos.pop(paso, None)
         siguiente = self.flujo.completar(paso)
         if siguiente and self.module.paso(siguiente).automatico and siguiente not in self.estado.resultados:
             self._schedule(siguiente)
@@ -167,6 +177,9 @@ class SessionController(QObject):
         for timer in self._timers.values():
             timer.stop()
         cancelar_todo(self._vivas)
+
+    def select_rows(self, rows: list[int]) -> None:
+        self.rows_selection_requested.emit(list(rows))
 
     def focus_step(self, paso: str) -> None:
         self.focus_requested.emit(paso)
@@ -187,6 +200,7 @@ class SessionController(QObject):
         if "error" in self.estado.resultados.get(paso, {}):
             return
         estaba = self.flujo[paso]
+        self._reabiertos.pop(paso, None)
         siguiente = self.flujo.completar(paso)
         if estaba == EstadoPaso.HECHO:
             self.flujo.invalidar_despues(paso)
@@ -196,14 +210,38 @@ class SessionController(QObject):
 
     def reopen(self, paso: str) -> None:
         estaba = self.flujo[paso]
+        if self.flujo.activo == paso:
+            return
+        self._leave_active()
+        if estaba in (EstadoPaso.HECHO, EstadoPaso.DESACTUALIZADO):
+            self._reabiertos[paso] = estaba == EstadoPaso.DESACTUALIZADO
         self.flujo.abrir(paso)
         sin_resultado = paso not in self.estado.resultados
         if self.module.paso(paso).automatico and (sin_resultado or estaba == EstadoPaso.DESACTUALIZADO):
             self._schedule(paso)
         self.flow_changed.emit()
 
+    def _leave_active(self) -> None:
+        """Al salir de un paso reabierto: vuelve a «hecho» si no se cambió nada (o si es un
+        paso sin cálculo que sigue siendo válido); si se cambió y su resultado ya no vale,
+        queda «desactualizado»."""
+        activo = self.flujo.activo
+        if activo is None or activo not in self._reabiertos:
+            return
+        cambiado = self._reabiertos.pop(activo)
+        definicion = self.module.paso(activo)
+        r = self.estado.resultados.get(activo, {})
+        if self.validate(activo) and not definicion.calcula:
+            return  # inválido: abrir() lo dejará pendiente
+        if cambiado and definicion.calcula and not definicion.automatico:
+            self.flujo.estados[activo] = EstadoPaso.DESACTUALIZADO
+        elif "error" not in r and (r or not definicion.calcula):
+            self.flujo.estados[activo] = EstadoPaso.HECHO
+
     def recalculate(self, paso: str) -> None:
         """Repite un paso desactualizado con las entradas actuales."""
+        if self.flujo.activo in self.flujo.anteriores(paso):
+            self._leave_active()
         pendiente = next((p for p in self.flujo.anteriores(paso) if self.flujo[p] != EstadoPaso.HECHO), None)
         if pendiente:
             self.message.emit(S.STALE_BLOCKED.format(step=self.module.paso(pendiente).titulo))

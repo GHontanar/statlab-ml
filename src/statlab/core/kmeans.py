@@ -25,6 +25,7 @@ from sklearn.metrics import (
 )
 from sklearn.preprocessing import RobustScaler, StandardScaler
 
+from statlab.core import fmt
 from statlab.core.errors import ErrorUsuario
 
 IMPUTATION_METHODS = {
@@ -173,7 +174,9 @@ def prepare(
         warnings.append("Sin escalar: k-means usa distancia euclídea y las variables con más rango pesarán más.")
     pct_imp = 100 * n_imputed / max(arr.size, 1)
     if pct_imp > 20:
-        warnings.append(f"Se ha imputado el {pct_imp:.0f}% de las celdas: interpreta los clusters con cautela.")
+        warnings.append(
+            f"Se ha imputado el {fmt.num(pct_imp, 0)} % de las celdas: interpreta los clusters con cautela."
+        )
 
     return Prepared(
         X=arr,
@@ -396,12 +399,12 @@ def cluster_profiles(
         r = {"Cluster": c + 1, "n": int(m.sum()), "%": round(100 * m.mean(), 1)}
         for col in cols:
             v = raw.loc[m, col]
-            r[col] = f"{v.mean():.2f} ({v.std():.2f})" if v.notna().any() else "—"
+            r[col] = f"{fmt.num(v.mean())} ({fmt.num(v.std())})" if v.notna().any() else "—"
         rows.append(r)
     total = {"Cluster": "Total", "n": len(labels), "%": 100.0}
     for col in cols:
         v = raw[col]
-        total[col] = f"{v.mean():.2f} ({v.std():.2f})"
+        total[col] = f"{fmt.num(v.mean())} ({fmt.num(v.std())})"
     rows.append(total)
     desc = pd.DataFrame(rows)
 
@@ -428,7 +431,7 @@ def describe_external(
             for c in range(k):
                 v = s[labels == c].dropna()
                 r[f"Cluster {c + 1}"] = (
-                    f"{v.median():.2f} [{v.quantile(.25):.2f}–{v.quantile(.75):.2f}]" if len(v) else "—"
+                    f"{fmt.num(v.median())} [{fmt.num(v.quantile(.25))}–{fmt.num(v.quantile(.75))}]" if len(v) else "—"
                 )
             r["NA"] = int(s.isna().sum())
             out.append(r)
@@ -439,7 +442,7 @@ def describe_external(
                 for c in range(k):
                     sc = s[labels == c].astype("string").fillna("NA")
                     n_l = int((sc == lev).sum())
-                    r[f"Cluster {c + 1}"] = f"{n_l} ({100 * n_l / max(len(sc), 1):.0f}%)"
+                    r[f"Cluster {c + 1}"] = f"{n_l} ({fmt.num(100 * n_l / max(len(sc), 1), 0)} %)"
                 r["NA"] = ""
                 out.append(r)
     return pd.DataFrame(out)
@@ -517,16 +520,16 @@ def methods_text(
         f"({', '.join(prep.columns)}). {imp}; en total se imputaron {prep.n_imputed_cells} celdas "
         f"y se excluyeron {prep.n_dropped} de {prep.n_input} observaciones. {sc}. "
         f"El número de conglomerados se exploró entre k = {ks[0]} y k = {ks[1]} mediante el método del codo "
-        f"y el coeficiente de silueta medio, seleccionándose k = {k} (silueta media {sil:.2f}"
+        f"y el coeficiente de silueta medio, seleccionándose k = {k} (silueta media {fmt.num(sil)}"
     )
     if boot is not None:
         lo, hi = boot.silhouette_ci
-        j = ", ".join(f"C{c + 1}: {v:.2f}" for c, v in enumerate(boot.jaccard_mean))
+        j = ", ".join(f"C{c + 1}: {fmt.num(v)}" for c, v in enumerate(boot.jaccard_mean))
         txt += (
-            f"; IC95% bootstrap {lo:.2f}–{hi:.2f}, {boot.B} remuestras). La estabilidad de cada "
+            f"; IC95 % bootstrap {fmt.num(lo)}–{fmt.num(hi)}, {boot.B} remuestras). La estabilidad de cada "
             f"conglomerado se evaluó mediante remuestreo bootstrap con el índice de Jaccard medio "
             f"(Hennig, 2007), considerando estables valores ≥ 0,75 ({j}); el índice de Rand ajustado "
-            f"medio respecto a la partición original fue {np.nanmean(boot.ari):.2f}."
+            f"medio respecto a la partición original fue {fmt.num(np.nanmean(boot.ari))}."
         )
     else:
         txt += ")."

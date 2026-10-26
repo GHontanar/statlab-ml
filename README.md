@@ -6,10 +6,10 @@ Aplicación de escritorio para análisis estadístico clínico. El primer módul
 imputación. Pensada para clínicos: interfaz gráfica, sin escribir código, y
 **sin conexión**: los datos nunca salen del equipo.
 
-> Estado: **M3 · barrido de k**. Se cargan datos, se asignan roles desde la tabla, se
-> preprocesan y se compara k de 2 a 8 (codo, silueta con IC bootstrap, Calinski-Harabasz,
-> Davies-Bouldin) en segundo plano, con progreso y cancelación; k se elige con un clic
-> en los gráficos. El modelo final llega en el siguiente hito.
+> Estado: **M4 · modelo final**. Flujo completo de análisis: datos → roles en la tabla →
+> preprocesado → barrido de k → modelo final validado por bootstrap (KPIs, PCA enlazado
+> con la tabla, perfiles, silueta, estabilidad, sensibilidad a la imputación y
+> descriptivas). Guardar la sesión y exportar llegan en el siguiente hito.
 > Plan completo en [`docs/HANDOFF_statlab-desktop.md`](docs/HANDOFF_statlab-desktop.md).
 
 ## Desarrollo

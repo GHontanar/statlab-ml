@@ -51,7 +51,13 @@ class ResultsPanel(QFrame):
         session.step_updated.connect(self.refresh)
 
     def _target(self) -> tuple[str, dict] | None:
+        """El paso abierto si tiene resultado (p. ej. «Elegir k» reabierto para cambiar k);
+        si no, el paso más avanzado con resultado."""
         estado = self.session.estado
+        activo = estado.flujo.activo
+        r = estado.resultados.get(activo) if activo else None
+        if r and "error" not in r:
+            return activo, r
         for paso in reversed(self.session.module.pasos()):
             r = estado.resultados.get(paso.id)
             if r and "error" not in r and estado.flujo[paso.id] != EstadoPaso.PENDIENTE:

@@ -25,8 +25,9 @@ def tokens() -> dict[str, str]:
 
 
 class ThemedPlot(pg.PlotWidget):
-    def __init__(self, x_label: str, y_label: str, parent=None):
-        super().__init__(parent, axisItems={"bottom": SpanishAxis("bottom"), "left": SpanishAxis("left")})
+    def __init__(self, x_label: str, y_label: str, parent=None, view_box: pg.ViewBox | None = None):
+        extra = {"viewBox": view_box} if view_box is not None else {}
+        super().__init__(parent, axisItems={"bottom": SpanishAxis("bottom"), "left": SpanishAxis("left")}, **extra)
         t = tokens()
         self.setBackground(t["panel"])
         self.setFixedHeight(230)

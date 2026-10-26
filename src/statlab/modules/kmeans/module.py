@@ -6,6 +6,7 @@ from typing import Any
 import numpy as np
 
 from statlab import strings_es as S
+from statlab.core import fmt
 from statlab.core import kmeans as km
 from statlab.core.dataset import Rol
 from statlab.core.estado import EstadoSesion
@@ -36,13 +37,10 @@ def _widget_barrido(controlador: Any):
     return SweepWidget(controlador)
 
 
-def _widget_proximamente(controlador: Any):
-    from PySide6.QtWidgets import QLabel
+def _widget_final(controlador: Any):
+    from statlab.modules.kmeans.steps import FinalWidget
 
-    label = QLabel(S.NEXT_MILESTONE)
-    label.setObjectName("Hint")
-    label.setWordWrap(True)
-    return label
+    return FinalWidget(controlador)
 
 
 def resumen_preprocesado(estado: EstadoSesion) -> str:
@@ -156,6 +154,101 @@ def barrer(estado: EstadoSesion, progreso: Progreso, cancelar: Cancelar) -> Resu
     }
 
 
+def _json(x):
+    """Convierte arrays y NaN de numpy a tipos JSON (NaN → None)."""
+    if isinstance(x, dict):
+        return {k: _json(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return [_json(v) for v in x]
+    if isinstance(x, np.ndarray):
+        return _json(x.tolist())
+    if isinstance(x, (np.floating, float)):
+        return None if np.isnan(x) else float(x)
+    if isinstance(x, np.integer):
+        return int(x)
+    return x
+
+
+def _tabla(df) -> dict:
+    """DataFrame → {"columnas": [...], "filas": [[...], ...]} (serializable)."""
+    return {"columnas": [str(c) for c in df.columns], "filas": _json(df.astype(object).values.tolist())}
+
+
+def validar_final(estado: EstadoSesion) -> list[str]:
+    return [] if k_elegido(estado) is not None else [S.VAL_NEED_SWEEP]
+
+
+def resumen_final(estado: EstadoSesion) -> str:
+    k = k_elegido(estado)
+    if k is None:
+        return ""
+    lineas = [S.FINAL_SUMMARY.format(k=k, b=estado.params("modelo_final")["B"])]
+    r = estado.resultados.get("modelo_final")
+    if r and "error" not in r:
+        sizes = " / ".join(str(n) for n in r["tamanos"])
+        lineas.append(S.FINAL_SUMMARY_RESULT.format(sil=fmt.num(r["silueta_media"]), sizes=sizes))
+    return "\n".join(lineas)
+
+
+def ajustar(estado: EstadoSesion, progreso: Progreso, cancelar: Cancelar) -> Resultado:
+    """Modelo final: ajuste, validación bootstrap, PCA, perfiles, descriptivas y sensibilidad."""
+    ds = estado.dataset
+    prep_r = estado.resultados.get("preprocesado", {})
+    prep = prep_r["_preparado"] if "_preparado" in prep_r else preprocesar(estado)["_preparado"]
+    X = prep.X
+    k = k_elegido(estado)
+    sweep = estado.params("elegir_k")
+    n_init, seed = int(sweep["n_init"]), int(sweep["semilla"])
+    B = int(estado.params("modelo_final")["B"])
+
+    model, labels = km.fit_kmeans(X, k, n_init, seed)
+    sil_obs = km.silhouette_per_point(X, labels)
+    progreso(0.05)
+    boot = km.bootstrap_validate(X, k, labels, B=B, seed=seed,
+                                 progress=lambda f: progreso(0.05 + 0.75 * f), should_cancel=cancelar)
+    coords, centros, var = km.pca_2d(X, model.cluster_centers_)
+    filas = ds.df.loc[prep.row_index]
+    cols = list(prep.columns)
+    desc, z = km.cluster_profiles(filas, cols, X, labels)
+    descriptivas = ds.con_rol(Rol.DESCRIPTIVA)
+    ext = km.describe_external(filas, descriptivas, labels) if descriptivas else None
+    p = estado.params("preprocesado")
+    sens, n_sens = km.imputation_sensitivity(
+        ds.df.iloc[ds.filas_activas()], cols, k, p["escalado"], int(p["vecinos"]), n_init, seed,
+        log_cols=prep.log_cols, progress=lambda f: progreso(0.8 + 0.18 * f), should_cancel=cancelar,
+    )
+    progreso(1.0)
+    jaccard_ci = np.asarray(boot.jaccard_ci)
+    return _json({
+        "k": k,
+        "n": len(X),
+        "filas": [int(i) for i in prep.row_index],
+        "etiquetas": labels,
+        "tamanos": np.bincount(labels, minlength=k),
+        "silueta_obs": sil_obs,
+        "silueta_media": float(np.mean(sil_obs)),
+        "silueta_negativas_pct": float(100 * np.mean(sil_obs < 0)),
+        "boot": {
+            "B": B,
+            "silueta": boot.silhouettes,
+            "silueta_ic": list(boot.silhouette_ci),
+            "jaccard_media": boot.jaccard_mean,
+            "jaccard_ic": jaccard_ci,
+            "disuelto_pct": boot.dissolved_pct,
+            "ari_media": float(np.nanmean(boot.ari)),
+            "interpretacion": [km.jaccard_label(j) for j in boot.jaccard_mean],
+        },
+        "inestables": int(np.sum(np.asarray(boot.jaccard_mean) < 0.75)),
+        "pca": {"coords": coords, "centros": centros, "varianza": var},
+        "perfiles": {"columnas": cols, "z": z.values, "tabla": _tabla(desc)},
+        "descriptivas": _tabla(ext) if ext is not None and len(ext) else None,
+        "sensibilidad": {"metodos": list(sens.index), "ari": sens.values,
+                         "n": {km.IMPUTATION_METHODS[m]: n for m, n in n_sens.items()}},
+        "metodos": km.methods_text(prep, k, n_init, seed, (int(sweep["k_min"]), int(sweep["k_max"])),
+                                   float(np.mean(sil_obs)), boot),
+    })
+
+
 class KMeansModule(AnalysisModule):
     id = "kmeans"
     nombre = S.KMEANS_NAME
@@ -188,8 +281,11 @@ class KMeansModule(AnalysisModule):
                 "modelo_final",
                 S.STEP_FINAL_MODEL,
                 calcula=True,
+                boton=S.FINAL_RUN,
                 parametros=dict(FINAL_DEFAULTS),
-                crear_widget=_widget_proximamente,
+                crear_widget=_widget_final,
+                resumen=resumen_final,
+                validar=validar_final,
             ),
         ]
 
@@ -203,6 +299,8 @@ class KMeansModule(AnalysisModule):
             return resultado
         if paso == "elegir_k":
             return barrer(estado, progreso, cancelar)
+        if paso == "modelo_final":
+            return ajustar(estado, progreso, cancelar)
         raise NotImplementedError(f"Paso «{paso}» todavía no implementado")
 
     def paneles(self, paso: str, resultado: Resultado, controlador: Any) -> list:
@@ -210,6 +308,10 @@ class KMeansModule(AnalysisModule):
             from statlab.modules.kmeans.panels import SweepPanel
 
             return [SweepPanel(resultado, controlador)]
+        if paso == "modelo_final":
+            from statlab.modules.kmeans.panels import FinalPanel
+
+            return [FinalPanel(resultado, controlador)]
         return []
 
     def exportar(self, resultados: dict[str, Resultado]) -> Exportacion:

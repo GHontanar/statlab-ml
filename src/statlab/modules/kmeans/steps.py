@@ -238,3 +238,67 @@ class SweepWidget(QWidget):
             bootstrap=self.boot.isChecked(),
             B=self.B.value(),
         )
+
+
+class FinalWidget(QWidget):
+    """Paso 5: k elegido (también con clic en los gráficos) y remuestras bootstrap."""
+
+    PASO = "modelo_final"
+    B_OPTIONS = (50, 100, 200, 500, 1000)
+
+    def __init__(self, session: SessionController, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.session = session
+        self.k = QComboBox()
+        self.k.setFixedWidth(80)
+        self.B = QComboBox()
+        self.B.setFixedWidth(80)
+        for b in self.B_OPTIONS:
+            self.B.addItem(str(b), b)
+
+        grid = QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(8)
+        grid.setVerticalSpacing(6)
+        grid.addWidget(_label(S.FINAL_K, S.HELP_FINAL_K), 0, 0)
+        grid.addWidget(self.k, 0, 1)
+        grid.addWidget(_label(S.FINAL_B, S.HELP_FINAL_B), 1, 0)
+        grid.addWidget(self.B, 1, 1)
+        grid.setColumnStretch(0, 1)
+        hint = QLabel(S.FINAL_K_HINT)
+        hint.setObjectName("Hint")
+        hint.setWordWrap(True)
+
+        col = QVBoxLayout(self)
+        col.setContentsMargins(0, 4, 0, 0)
+        col.setSpacing(8)
+        col.addLayout(grid)
+        col.addWidget(hint)
+
+        self.k.currentIndexChanged.connect(self._changed)
+        self.B.currentIndexChanged.connect(self._changed)
+        session.dataset_changed.connect(self._load)
+        session.step_updated.connect(lambda p: p in (self.PASO, "elegir_k") and self._load())
+        self._load()
+
+    def _load(self) -> None:
+        from statlab.modules.kmeans.module import k_elegido
+
+        estado = self.session.estado
+        sweep = estado.resultados.get("elegir_k") or {}
+        for w in (self.k, self.B):
+            w.blockSignals(True)
+        self.k.clear()
+        for k in sweep.get("ks", []):
+            self.k.addItem(str(k), k)
+        k = k_elegido(estado)
+        if k is not None:
+            self.k.setCurrentIndex(self.k.findData(k))
+        self.B.setCurrentIndex(max(self.B.findData(int(self.session.params(self.PASO)["B"])), 0))
+        for w in (self.k, self.B):
+            w.blockSignals(False)
+
+    def _changed(self, *_args) -> None:
+        if self.k.currentData() is None:
+            return
+        self.session.set_params(self.PASO, k=int(self.k.currentData()), B=int(self.B.currentData()))

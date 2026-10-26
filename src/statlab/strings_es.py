@@ -225,3 +225,75 @@ CONTINUE_FINAL_BODY = (
 )
 CONTINUE_FINAL_BUTTON = "Ir al modelo final"
 RESULTS_STALE = "Estos resultados están desactualizados: recalcula el paso en la barra lateral."
+
+# Paso 5 (modelo final)
+FINAL_K = "k elegido"
+FINAL_B = "Remuestras bootstrap"
+FINAL_RUN = "Ajustar y validar"
+FINAL_K_HINT = "También puedes elegir k haciendo clic en un punto del codo o de la silueta."
+FINAL_SUMMARY = "k = {k} · {b} remuestras bootstrap"
+FINAL_SUMMARY_RESULT = "Silueta media {sil} · tamaños {sizes}"
+HELP_FINAL_K = "Número de grupos del modelo final. Elígelo con los índices del paso anterior y el criterio clínico."
+HELP_FINAL_B = (
+    "Cuántas veces se repite el ajuste en remuestras de los pacientes para medir la estabilidad de cada "
+    "cluster y el intervalo de confianza de la silueta. Más remuestras, más precisión y más tiempo."
+)
+VAL_NEED_SWEEP = "Calcula antes el barrido de k."
+TIP_PCA = "{cluster} · fila {row}\nClic para seleccionarla en la tabla"
+AXIS_OBS = "Observaciones (ordenadas dentro de cada cluster)"
+AXIS_SIL_OBS = "Silueta"
+AXIS_CLUSTER = "Cluster"
+AXIS_JACCARD = "Jaccard medio (IC95 %)"
+AXIS_FREQ = "Remuestras"
+
+# Panel del modelo final
+KPI_SIL = "Silueta media"
+KPI_SIL_NOTE = "De −1 a 1; > 0,5 estructura razonable"
+KPI_CI = "IC95 % bootstrap"
+KPI_CI_NOTE = "{b} remuestras"
+KPI_ARI = "ARI medio vs bootstrap"
+KPI_ARI_NOTE = "Concordancia con cada remuestra"
+KPI_UNSTABLE = "Clusters poco estables"
+KPI_UNSTABLE_VALUE = "{n} de {k}"
+KPI_UNSTABLE_NOTE = "Jaccard < 0,75 (Hennig, 2007)"
+SIZES = "Tamaños"
+SIZE_ITEM = " · {n} ({pct})"
+TAB_SUMMARY = "Resumen"
+TAB_SILHOUETTE = "Silueta"
+TAB_STABILITY = "Estabilidad"
+TAB_SENSITIVITY = "Sensibilidad a la imputación"
+TAB_DESCRIPTIVE = "Variables descriptivas"
+PCA_TITLE = "Proyección en componentes principales"
+PCA_HINT = "Clic en un punto o arrastra un lazo para seleccionar esas filas en la tabla."
+HEATMAP_TITLE = "Perfiles de los clusters (medias en z)"
+HEATMAP_HINT = "Clic en una fila para ver la media (DE) en unidades originales."
+HEATMAP_DETAIL = "{cluster} (n = {n}): {values}"
+SIL_TITLE = "Silueta de cada observación"
+SIL_NOTE = "Línea discontinua: silueta media ({mean}). Siluetas negativas: {neg} de las observaciones."
+JACCARD_TITLE = "Estabilidad por cluster (Jaccard bootstrap)"
+HIST_TITLE = "Silueta media en las remuestras"
+STABILITY_HEAD = ["Cluster", "n", "Jaccard medio", "IC95 %", "Se disuelve (%)", "Interpretación"]
+STABILITY_NOTE = (
+    "Jaccard ≥ 0,85 muy estable; ≥ 0,75 estable; ≥ 0,60 indica un patrón, pero dudoso; < 0,60 inestable. "
+    "«Se disuelve»: % de remuestras en que el cluster no se recupera (Jaccard < 0,5)."
+)
+SENS_TITLE = "Concordancia (ARI) entre las particiones obtenidas con cada método de imputación"
+SENS_N = "Filas analizadas: {items}"
+SENS_WARN = (
+    "Algún par de métodos da particiones bastante distintas (ARI < 0,8): los clusters dependen de cómo "
+    "se tratan los valores perdidos. Interprétalos con cautela."
+)
+SENS_OK = "Todos los métodos dan particiones muy parecidas (ARI ≥ 0,8): los clusters no dependen de la imputación."
+DESC_EMPTY = "No hay variables descriptivas. Márcalas en la tabla (tecla D) y vuelve a ajustar el modelo."
+DESC_HEAD_VAR = "Variable"
+DESC_HEAD_LEVEL = "Nivel"
+DESC_NOTE = "Mediana [RIC] para numéricas y n (%) para categóricas. Sin p-valores: es una descripción."
+NO_TESTS_NOTE = (
+    "Las variables del modelo no se comparan con contrastes de hipótesis: los clusters difieren en ellas "
+    "por construcción."
+)
+HIGHLIGHT = "Resaltar:"
+HIGHLIGHT_ALL = "Todos"
+COL_CLUSTER = "cluster"
+COL_SILHOUETTE = "silueta"
+ROLE_LABEL_RESULT = "RESULTADO"
