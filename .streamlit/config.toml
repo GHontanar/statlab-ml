@@ -1,0 +1,14 @@
+# Uso local: solo escucha en este equipo y no envía telemetría.
+[server]
+address = "127.0.0.1"
+port = 8502
+headless = false
+maxUploadSize = 200
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+serverAddress = "localhost"
+
+[client]
+toolbarMode = "minimal"
