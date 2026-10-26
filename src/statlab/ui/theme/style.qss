@@ -1,0 +1,226 @@
+/* Hoja de estilo de StatLab sobre el estilo base Fusion.
+   Plantilla de string.Template: los marcadores con dólar se sustituyen por tokens.py. */
+
+QWidget {
+    color: ${text};
+    font-size: ${font_size}px;
+}
+
+QMainWindow, QWidget#Central {
+    background: ${bg};
+}
+
+QToolTip {
+    background: ${panel};
+    color: ${text};
+    border: 1px solid ${border_strong};
+    border-radius: ${radius_field}px;
+    padding: 6px 8px;
+}
+
+/* --- Menús ------------------------------------------------------------ */
+QMenuBar {
+    background: ${panel};
+    border-bottom: 1px solid ${border};
+}
+QMenuBar::item {
+    padding: 4px 10px;
+    background: transparent;
+    border-radius: ${radius_field}px;
+}
+QMenuBar::item:selected {
+    background: ${accent_soft};
+}
+QMenu {
+    background: ${panel};
+    border: 1px solid ${border_strong};
+    border-radius: ${radius_button}px;
+    padding: 4px;
+}
+QMenu::item {
+    padding: 6px 24px 6px 24px;
+    border-radius: ${radius_field}px;
+}
+QMenu::item:selected {
+    background: ${accent_soft};
+    color: ${text};
+}
+QMenu::separator {
+    height: 1px;
+    background: ${border};
+    margin: 4px 8px;
+}
+
+/* --- Cabecera --------------------------------------------------------- */
+QFrame#Header {
+    background: ${panel};
+    border: none;
+    border-bottom: 1px solid ${border};
+}
+QLabel#AppTitle {
+    font-size: 16px;
+    font-weight: 700;
+}
+QLabel#ModuleName {
+    color: ${text_secondary};
+}
+QFrame#OfflineBadge {
+    background: ${done_soft};
+    border-radius: 12px;
+}
+QFrame#OfflineBadge QLabel {
+    color: ${done};
+    font-size: 12px;
+}
+
+/* --- Botones ---------------------------------------------------------- */
+QPushButton {
+    background: ${panel};
+    color: ${text};
+    border: 1px solid ${border_strong};
+    border-radius: ${radius_button}px;
+    padding: 0px 14px;
+    min-height: 34px;
+    font-weight: 500;
+}
+QPushButton:hover {
+    border-color: ${accent};
+}
+QPushButton:pressed {
+    background: ${accent_soft};
+}
+QPushButton:disabled {
+    color: ${text_muted};
+    border-color: ${border};
+}
+QPushButton[variant="primary"] {
+    background: ${accent};
+    border-color: ${accent};
+    color: ${accent_text};
+}
+QPushButton[variant="primary"]:hover {
+    background: ${accent_hover};
+    border-color: ${accent_hover};
+}
+QPushButton:focus {
+    outline: none;
+    border: 2px solid ${accent};
+}
+
+/* --- Barra lateral ---------------------------------------------------- */
+QScrollArea#Sidebar, QWidget#SidebarContent {
+    background: ${sidebar};
+    border: none;
+}
+QScrollArea#Sidebar {
+    border-right: 1px solid ${border};
+}
+QLabel#SidebarTitle {
+    color: ${text_secondary};
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 4px;
+}
+
+QFrame#StepCard {
+    background: ${panel};
+    border: 1px solid ${border};
+    border-radius: ${radius_card}px;
+}
+QFrame#StepCard[state="active"] {
+    border: 2px solid ${accent};
+}
+QFrame#StepCard[state="stale"] {
+    border: 1px solid ${stale};
+    background: ${stale_soft};
+}
+QFrame#StepCard[state="pending"] {
+    background: transparent;
+}
+QFrame#StepCard QLabel#StepTitle {
+    font-size: 14px;
+    font-weight: 600;
+}
+QFrame#StepCard[state="pending"] QLabel#StepTitle {
+    color: ${text_muted};
+    font-weight: 500;
+}
+QFrame#StepCard QLabel#StepSummary {
+    color: ${text_secondary};
+    font-size: 12px;
+}
+QFrame#StepCard[state="pending"] QLabel#StepSummary {
+    color: ${text_muted};
+}
+
+QLabel#StepBadge {
+    border-radius: 11px;
+    font-size: 12px;
+    font-weight: 700;
+    color: ${accent_text};
+    background: ${accent};
+}
+QLabel#StepBadge[state="done"] {
+    background: ${done};
+}
+QLabel#StepBadge[state="stale"] {
+    background: ${stale};
+}
+QLabel#StepBadge[state="pending"] {
+    background: transparent;
+    color: ${text_muted};
+    border: 1px solid ${pending_ring};
+    font-weight: 600;
+}
+
+/* --- Zona central ----------------------------------------------------- */
+QFrame#Panel {
+    background: ${panel};
+    border: 1px solid ${border};
+    border-radius: ${radius_panel}px;
+}
+QLabel#EmptyTitle {
+    font-size: 18px;
+    font-weight: 600;
+}
+QLabel#EmptyBody {
+    color: ${text_secondary};
+}
+QLabel#Muted {
+    color: ${text_muted};
+}
+
+QSplitter::handle {
+    background: transparent;
+}
+QSplitter::handle:hover {
+    background: ${accent_soft};
+}
+
+/* --- Barras de desplazamiento ---------------------------------------- */
+QScrollBar:vertical {
+    background: transparent;
+    width: 10px;
+    margin: 2px;
+}
+QScrollBar:horizontal {
+    background: transparent;
+    height: 10px;
+    margin: 2px;
+}
+QScrollBar::handle {
+    background: ${border_strong};
+    border-radius: 3px;
+    min-height: 24px;
+    min-width: 24px;
+}
+QScrollBar::handle:hover {
+    background: ${text_muted};
+}
+QScrollBar::add-line, QScrollBar::sub-line {
+    width: 0px;
+    height: 0px;
+}
+QScrollBar::add-page, QScrollBar::sub-page {
+    background: transparent;
+}

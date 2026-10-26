@@ -3,7 +3,8 @@ import pandas as pd
 import pytest
 from sklearn.datasets import make_blobs
 
-from statlab_ml import kmeans_core as kc
+from statlab.core import io as sio
+from statlab.core import kmeans as kc
 
 
 def make_df(n=300, k=3, na_frac=0.08, seed=1):
@@ -94,7 +95,7 @@ def test_imputation_sensitivity_high_agreement():
 
 def test_decimal_comma_reading():
     raw = "id;hb;plq;sexo\n1;12,5;150;M\n2;9,8;NA;F\n3;11;220;M\n".encode("latin-1")
-    df = kc.read_table("datos.csv", raw)
+    df = sio.read_table("datos.csv", raw)
     assert df["hb"].dtype.kind == "f"
     assert df["hb"].tolist() == [12.5, 9.8, 11.0]
     assert df["plq"].isna().sum() == 1
@@ -108,3 +109,28 @@ def test_methods_text():
     boot = kc.bootstrap_validate(p.X, 3, lab, B=10)
     t = kc.methods_text(p, 3, 20, 0, (2, 8), 0.6, boot)
     assert "k vecinos" in t and "Jaccard" in t
+
+
+def test_cancellation_and_progress():
+    df, _ = make_df(na_frac=0)
+    p = kc.prepare(df, ["hb", "plaquetas", "ldh", "pcr"], "complete")
+    _, lab = kc.fit_kmeans(p.X, 3)
+    seen = []
+    kc.sweep_k_bootstrap(p.X, [2, 3], B=4, progress=seen.append)
+    assert seen == sorted(seen) and seen[-1] == pytest.approx(1.0)
+
+    calls = {"n": 0}
+
+    def cancel_after_two():
+        calls["n"] += 1
+        return calls["n"] > 2
+
+    with pytest.raises(kc.Cancelled):
+        kc.bootstrap_validate(p.X, 3, lab, B=50, should_cancel=cancel_after_two)
+    assert calls["n"] == 3
+    with pytest.raises(kc.Cancelled):
+        kc.sweep_k(p.X, range(2, 6), should_cancel=lambda: True)
+
+
+def test_silhouette_exact_up_to_5000():
+    assert kc.SILHOUETTE_MAX_N == 5000

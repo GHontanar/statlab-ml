@@ -1,15 +1,14 @@
-"""Núcleo de clustering k-means para StatLab ML.
+"""Motor de clustering k-means de StatLab.
 
-Funciones puras (sin Streamlit) para poder testearlas y reutilizarlas:
+Funciones puras (sin Qt) para poder testearlas y reutilizarlas:
 preparación (imputación + escalado), barrido de k, ajuste final,
 bootstrap (IC de la silueta, estabilidad de Jaccard por cluster, ARI),
 PCA, perfiles y sensibilidad a la imputación.
 """
 from __future__ import annotations
 
-import io
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Callable, Iterable
 
 import numpy as np
 import pandas as pd
@@ -40,49 +39,24 @@ SCALING_METHODS = {
 
 # Por encima de este tamaño la silueta se estima sobre una submuestra
 # (su coste es O(n²)).
-SILHOUETTE_MAX_N = 4000
+SILHOUETTE_MAX_N = 5000
+
+Progress = Callable[[float], None]
+ShouldCancel = Callable[[], bool]
+
+
+class Cancelled(Exception):
+    """El usuario ha cancelado un cálculo largo."""
+
+
+def _check_cancel(should_cancel: ShouldCancel | None) -> None:
+    if should_cancel is not None and should_cancel():
+        raise Cancelled
 
 
 # ---------------------------------------------------------------------------
-# Lectura de datos
+# Inspección de datos
 # ---------------------------------------------------------------------------
-def read_table(name: str, raw: bytes) -> pd.DataFrame:
-    """Lee CSV/TSV/Excel. Detecta separador y coma decimal (formato español)."""
-    lower = name.lower()
-    if lower.endswith((".xlsx", ".xls", ".xlsm")):
-        df = pd.read_excel(io.BytesIO(raw))
-    else:
-        df = None
-        for enc in ("utf-8-sig", "latin-1"):
-            try:
-                df = pd.read_csv(io.BytesIO(raw), sep=None, engine="python", encoding=enc)
-                break
-            except UnicodeDecodeError:
-                continue
-        if df is None:
-            raise ValueError("No se pudo leer el archivo (codificación desconocida).")
-    return coerce_decimal_commas(df)
-
-
-def coerce_decimal_commas(df: pd.DataFrame, threshold: float = 0.9) -> pd.DataFrame:
-    """Convierte a numéricas las columnas de texto con coma decimal ("3,2")."""
-    na_tokens = {"", "na", "nan", "n/a", "nd", "-", "."}
-    out = df.copy()
-    for col in out.columns:
-        s = out[col]
-        if pd.api.types.is_numeric_dtype(s) or pd.api.types.is_datetime64_any_dtype(s):
-            continue
-        txt = s.astype("string").str.strip()
-        txt = txt.mask(txt.str.lower().isin(na_tokens))
-        present = txt.dropna()
-        if present.empty:
-            continue
-        num = pd.to_numeric(txt.str.replace(",", ".", regex=False), errors="coerce")
-        if num[present.index].notna().mean() >= threshold:
-            out[col] = num.astype(float)
-    return out
-
-
 def numeric_columns(df: pd.DataFrame) -> list[str]:
     return [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c]) and not pd.api.types.is_bool_dtype(df[c])]
 
@@ -244,9 +218,14 @@ def fit_kmeans(X: np.ndarray, k: int, n_init: int = 20, seed: int = 0) -> tuple[
     return km, labels
 
 
-def sweep_k(X: np.ndarray, ks: Iterable[int], n_init: int = 10, seed: int = 0) -> pd.DataFrame:
+def sweep_k(
+    X: np.ndarray, ks: Iterable[int], n_init: int = 10, seed: int = 0,
+    progress: Progress | None = None, should_cancel: ShouldCancel | None = None,
+) -> pd.DataFrame:
+    ks = list(ks)
     rows = []
-    for k in ks:
+    for i, k in enumerate(ks):
+        _check_cancel(should_cancel)
         km = KMeans(n_clusters=k, n_init=n_init, random_state=seed).fit(X)
         lab = km.labels_
         rows.append(
@@ -259,12 +238,14 @@ def sweep_k(X: np.ndarray, ks: Iterable[int], n_init: int = 10, seed: int = 0) -
                 "Tamaño mínimo": int(np.bincount(lab).min()),
             }
         )
+        if progress:
+            progress((i + 1) / len(ks))
     return pd.DataFrame(rows)
 
 
 def _boot_silhouettes(
     X: np.ndarray, k: int, B: int, n_init: int, seed: int,
-    progress: Callable[[float], None] | None = None,
+    progress: Progress | None = None, should_cancel: ShouldCancel | None = None,
 ) -> np.ndarray:
     """Ajusta k-means en remuestras bootstrap y evalúa la silueta sobre
     los datos originales (evita el sesgo de los puntos duplicados)."""
@@ -272,6 +253,7 @@ def _boot_silhouettes(
     n = len(X)
     out = np.full(B, np.nan)
     for b in range(B):
+        _check_cancel(should_cancel)
         idx = rng.integers(0, n, n)
         km = KMeans(n_clusters=k, n_init=n_init, random_state=int(rng.integers(2**31 - 1))).fit(X[idx])
         out[b] = _silhouette(X, km.predict(X), seed + b)
@@ -282,16 +264,15 @@ def _boot_silhouettes(
 
 def sweep_k_bootstrap(
     X: np.ndarray, ks: Iterable[int], B: int = 50, n_init: int = 5, seed: int = 0,
-    progress: Callable[[float], None] | None = None,
+    progress: Progress | None = None, should_cancel: ShouldCancel | None = None,
 ) -> pd.DataFrame:
     ks = list(ks)
     rows = []
     for i, k in enumerate(ks):
-        sil = _boot_silhouettes(X, k, B, n_init, seed + 1000 * k)
+        inner = (lambda f, i=i: progress((i + f) / len(ks))) if progress else None
+        sil = _boot_silhouettes(X, k, B, n_init, seed + 1000 * k, inner, should_cancel)
         lo, hi = np.nanpercentile(sil, [2.5, 97.5])
         rows.append({"k": k, "Silueta media boot": np.nanmean(sil), "IC95 inf": lo, "IC95 sup": hi})
-        if progress:
-            progress((i + 1) / len(ks))
     return pd.DataFrame(rows)
 
 
@@ -325,7 +306,7 @@ def jaccard_label(j: float) -> str:
 
 def bootstrap_validate(
     X: np.ndarray, k: int, ref_labels: np.ndarray, B: int = 200, n_init: int = 5, seed: int = 0,
-    progress: Callable[[float], None] | None = None,
+    progress: Progress | None = None, should_cancel: ShouldCancel | None = None,
 ) -> BootstrapResult:
     """Estabilidad tipo clusterboot (Hennig 2007) + IC bootstrap de la silueta.
 
@@ -342,6 +323,7 @@ def bootstrap_validate(
     jac = np.full((B, k), np.nan)
     ari = np.full(B, np.nan)
     for b in range(B):
+        _check_cancel(should_cancel)
         idx = rng.integers(0, n, n)
         uniq = np.unique(idx)
         km = KMeans(n_clusters=k, n_init=n_init, random_state=int(rng.integers(2**31 - 1))).fit(X[idx])
@@ -417,7 +399,9 @@ def cluster_profiles(
     return desc, zmat
 
 
-def describe_external(df_rows: pd.DataFrame, variables: list[str], labels: np.ndarray, max_levels: int = 6) -> pd.DataFrame:
+def describe_external(
+    df_rows: pd.DataFrame, variables: list[str], labels: np.ndarray, max_levels: int = 6
+) -> pd.DataFrame:
     """Variables no usadas en el clustering, descritas por cluster.
     Numéricas: mediana [RIC]; categóricas: n (%) por nivel."""
     k = labels.max() + 1
@@ -453,12 +437,17 @@ def imputation_sensitivity(
     df: pd.DataFrame, cols: list[str], k: int, scaling: str, knn_neighbors: int,
     n_init: int = 20, seed: int = 0, methods: Iterable[str] = ("complete", "mean", "median", "knn"),
     log_cols: Iterable[str] = (),
+    progress: Progress | None = None, should_cancel: ShouldCancel | None = None,
 ) -> tuple[pd.DataFrame, dict[str, int]]:
     """ARI entre las particiones obtenidas con cada método de imputación,
     calculado sobre las filas que comparten."""
     parts: dict[str, pd.Series] = {}
     n_rows: dict[str, int] = {}
-    for m in methods:
+    methods = list(methods)
+    for i, m in enumerate(methods):
+        _check_cancel(should_cancel)
+        if progress:
+            progress(i / len(methods))
         try:
             p = prepare(df, cols, m, scaling, knn_neighbors, log_cols)
         except ValueError:
@@ -468,8 +457,11 @@ def imputation_sensitivity(
         _, lab = fit_kmeans(p.X, k, n_init, seed)
         parts[m] = pd.Series(lab, index=p.row_index)
         n_rows[m] = len(lab)
+    if progress:
+        progress(1.0)
     names = list(parts)
-    mat = pd.DataFrame(np.nan, index=[IMPUTATION_METHODS[m] for m in names], columns=[IMPUTATION_METHODS[m] for m in names])
+    labels = [IMPUTATION_METHODS[m] for m in names]
+    mat = pd.DataFrame(np.nan, index=labels, columns=labels)
     for a in names:
         for b in names:
             common = parts[a].index.intersection(parts[b].index)
@@ -492,7 +484,10 @@ def methods_text(
         "complete": "Se excluyeron las observaciones con algún valor perdido (análisis de casos completos)",
         "mean": "Los valores perdidos se imputaron con la media de cada variable",
         "median": "Los valores perdidos se imputaron con la mediana de cada variable",
-        "knn": f"Los valores perdidos se imputaron mediante k vecinos más próximos (k = {prep.knn_neighbors}) sobre las variables estandarizadas",
+        "knn": (
+            "Los valores perdidos se imputaron mediante k vecinos más próximos "
+            f"(k = {prep.knn_neighbors}) sobre las variables estandarizadas"
+        ),
     }[prep.imputation]
     sc = {
         "standard": "Las variables se estandarizaron (media 0, desviación típica 1)",
