@@ -15,6 +15,8 @@ def test_window_layout(window):
     states = [c.state for c in window.sidebar.cards.values()]
     assert states[0] == EstadoPaso.ACTIVO
     assert all(s == EstadoPaso.PENDIENTE for s in states[1:])
+    datos = window.sidebar.cards["datos"]
+    assert datos.summary.isVisible() and not datos.errors.isVisible()
     assert window.sidebar.width() >= 260
 
 

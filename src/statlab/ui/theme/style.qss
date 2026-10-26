@@ -329,3 +329,102 @@ QPushButton#LinkButton:hover {
     color: ${accent_hover};
     text-decoration: underline;
 }
+
+/* --- Controles de los pasos ------------------------------------------ */
+QComboBox, QSpinBox {
+    background: ${panel};
+    color: ${text};
+    border: 1px solid ${border_strong};
+    border-radius: ${radius_field}px;
+    padding: 4px 8px;
+    min-height: 22px;
+}
+QComboBox:hover, QSpinBox:hover {
+    border-color: ${accent};
+}
+QComboBox:focus, QSpinBox:focus {
+    border: 2px solid ${accent};
+}
+QComboBox QAbstractItemView {
+    background: ${panel};
+    color: ${text};
+    border: 1px solid ${border_strong};
+    selection-background-color: ${accent_soft};
+    selection-color: ${text};
+}
+QToolButton#HelpButton {
+    background: transparent;
+    color: ${text_muted};
+    border: 1px solid ${pending_ring};
+    border-radius: 9px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0px;
+}
+QToolButton#HelpButton:hover {
+    color: ${accent};
+    border-color: ${accent};
+}
+QLabel#StepResult {
+    color: ${text_secondary};
+    font-size: 12px;
+}
+QLabel#WarningNote, QLabel#StaleNote {
+    color: ${stale};
+    font-size: 12px;
+}
+QLabel#ValidationNote {
+    color: ${na_text};
+    font-size: 12px;
+}
+QProgressBar#StepProgress {
+    background: ${gridline};
+    border: none;
+    border-radius: 3px;
+}
+QProgressBar#StepProgress::chunk {
+    background: ${accent};
+    border-radius: 3px;
+}
+QComboBox {
+    padding-right: 24px;
+}
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 22px;
+    border: none;
+}
+QComboBox::down-arrow {
+    image: url(statlab:icons/chevron-down-${mode}.svg);
+    width: 10px;
+    height: 6px;
+}
+QSpinBox {
+    padding-right: 22px;
+}
+QSpinBox::up-button, QSpinBox::down-button {
+    subcontrol-origin: border;
+    width: 20px;
+    border: none;
+    background: transparent;
+}
+QSpinBox::up-button {
+    subcontrol-position: top right;
+}
+QSpinBox::down-button {
+    subcontrol-position: bottom right;
+}
+QSpinBox::up-arrow {
+    image: url(statlab:icons/chevron-up-${mode}.svg);
+    width: 10px;
+    height: 6px;
+}
+QSpinBox::down-arrow {
+    image: url(statlab:icons/chevron-down-${mode}.svg);
+    width: 10px;
+    height: 6px;
+}
+QSpinBox::up-button:hover, QSpinBox::down-button:hover {
+    background: ${accent_soft};
+}

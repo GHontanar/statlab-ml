@@ -1,11 +1,11 @@
 """Contenido del paso «Variables y filas»: refleja en tiempo real lo elegido en la tabla."""
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget
 
 from statlab import strings_es as S
 from statlab.core.dataset import Dataset, Rol
+from statlab.ui.session import SessionController
 from statlab.ui.widgets.flow_layout import FlowLayout
 
 
@@ -43,10 +43,11 @@ class _ChipGroup(QWidget):
 
 
 class VariablesSummary(QWidget):
-    use_all_rows = Signal()
+    """Paso 2: se rellena desde la tabla y muestra los roles en tiempo real."""
 
-    def __init__(self, parent: QWidget | None = None):
+    def __init__(self, session: SessionController, parent: QWidget | None = None):
         super().__init__(parent)
+        self.session = session
         col = QVBoxLayout(self)
         col.setContentsMargins(0, 4, 0, 0)
         col.setSpacing(8)
@@ -57,12 +58,22 @@ class VariablesSummary(QWidget):
         self.facts.setWordWrap(True)
         self.all_rows = QPushButton(S.VARS_USE_ALL_ROWS)
         self.all_rows.setObjectName("LinkButton")
-        self.all_rows.clicked.connect(self.use_all_rows)
+        self.all_rows.clicked.connect(session.use_all_rows)
         self.hint = QLabel(f"{S.VARS_HINT}\n{S.VARS_SHORTCUTS}")
         self.hint.setObjectName("Hint")
         self.hint.setWordWrap(True)
         for w in (self.model, self.descr, self.facts, self.all_rows, self.hint):
             col.addWidget(w)
+        for signal in (session.dataset_changed, session.roles_changed, session.rows_changed):
+            signal.connect(self._refresh)
+
+    def set_compact(self, compact: bool) -> None:
+        """Cuando el paso está hecho se ocultan las ayudas."""
+        self.hint.setVisible(not compact)
+
+    def _refresh(self) -> None:
+        if self.session.dataset is not None:
+            self.update_from(self.session.dataset)
 
     def update_from(self, ds: Dataset) -> None:
         model = [(f"{c} · log" if c in ds.log else c, "model") for c in ds.con_rol(Rol.MODELO)]

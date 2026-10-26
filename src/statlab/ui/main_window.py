@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 
 from statlab import __version__
 from statlab import strings_es as S
+from statlab.core.errors import ErrorUsuario
 from statlab.modules.base import AnalysisModule
 from statlab.ui import theme
 from statlab.ui.data_table.panel import DataPanel
@@ -160,9 +161,9 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1100, 700)
         self.resize(1440, 900)
 
-        self.session = SessionController(self)
+        self.session = SessionController(module, self)
         self.header = Header(module.nombre)
-        self.sidebar = Sidebar(module)
+        self.sidebar = Sidebar(self.session)
         self.sidebar.setMinimumWidth(260)
         self.welcome = WelcomePanel()
         self.data_panel = DataPanel(self.session)
@@ -206,10 +207,8 @@ class MainWindow(QMainWindow):
         self.header.open_requested.connect(self.open_data)
         self.welcome.open_requested.connect(self.open_data)
         self.welcome.example_requested.connect(self.load_example)
-        self.sidebar.variables.use_all_rows.connect(self.session.use_all_rows)
+        self.sidebar.change_data_requested.connect(self.open_data)
         self.session.dataset_changed.connect(self._on_dataset)
-        self.session.roles_changed.connect(self._on_variables)
-        self.session.rows_changed.connect(self._on_variables)
         QGuiApplication.styleHints().colorSchemeChanged.connect(self._on_system_scheme)
 
     # --- Datos -----------------------------------------------------------
@@ -222,7 +221,7 @@ class MainWindow(QMainWindow):
     def load_path(self, path: str) -> bool:
         try:
             self.session.load_path(path)
-        except (ValueError, OSError) as e:
+        except (ErrorUsuario, OSError) as e:
             name = Path(path).name
             QMessageBox.warning(self, S.READ_ERROR_TITLE, S.READ_ERROR.format(name=name, reason=e))
             return False
@@ -234,11 +233,7 @@ class MainWindow(QMainWindow):
 
     def _on_dataset(self) -> None:
         self.data_stack.setCurrentWidget(self.data_panel)
-        self.sidebar.show_dataset(self.session.dataset)
         self.data_panel.table.setFocus()
-
-    def _on_variables(self) -> None:
-        self.sidebar.update_variables(self.session.dataset)
 
     # --- Menús -----------------------------------------------------------
     def _build_menus(self) -> None:

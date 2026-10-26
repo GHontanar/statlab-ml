@@ -9,7 +9,7 @@ from enum import StrEnum
 from importlib import resources
 from string import Template
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QDir, Qt
 from PySide6.QtGui import QColor, QFont, QFontDatabase, QGuiApplication, QPalette
 from PySide6.QtWidgets import QApplication
 
@@ -66,7 +66,7 @@ def resolve_dark(mode: ThemeMode) -> bool:
 
 def stylesheet(dark: bool) -> str:
     template = Template(_theme_dir().joinpath("style.qss").read_text(encoding="utf-8"))
-    values = {**tk.tokens(dark), **{k: str(v) for k, v in tk.METRICS.items()}}
+    values = {**tk.tokens(dark), **{k: str(v) for k, v in tk.METRICS.items()}, "mode": "dark" if dark else "light"}
     return template.substitute(values)
 
 
@@ -114,6 +114,8 @@ def is_dark(app: QApplication | None = None) -> bool:
 
 def setup(app: QApplication, mode: ThemeMode = ThemeMode.SYSTEM) -> None:
     """Fusion + Inter + tema. Llamar una vez, antes de crear ventanas."""
+    # La QSS referencia los iconos como «statlab:icons/…».
+    QDir.setSearchPaths("statlab", [str(_theme_dir())])
     app.setStyle("Fusion")
     font = QFont(load_fonts())
     font.setPixelSize(tk.METRICS["font_size"])

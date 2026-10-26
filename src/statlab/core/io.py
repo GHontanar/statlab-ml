@@ -12,6 +12,7 @@ from pathlib import Path
 import pandas as pd
 
 from statlab import strings_es as S
+from statlab.core.errors import ErrorUsuario
 
 EXCEL_SUFFIXES = (".xlsx", ".xls", ".xlsm")
 NA_TOKENS = {"", "na", "nan", "n/a", "nd", "-", "."}
@@ -25,7 +26,7 @@ def read_table(name: str, raw: bytes) -> pd.DataFrame:
         try:
             df = pd.read_excel(io.BytesIO(raw))
         except ImportError as e:  # el formato antiguo necesita xlrd, que no incluimos
-            raise ValueError(S.XLS_UNSUPPORTED) from e
+            raise ErrorUsuario(S.XLS_UNSUPPORTED) from e
     elif lower.endswith(EXCEL_SUFFIXES):
         df = pd.read_excel(io.BytesIO(raw))
     else:
@@ -37,9 +38,9 @@ def read_table(name: str, raw: bytes) -> pd.DataFrame:
             except UnicodeDecodeError:
                 continue
         if df is None:
-            raise ValueError(S.READ_ENCODING)
+            raise ErrorUsuario(S.READ_ENCODING)
     if df.shape[1] < 2 or df.empty:
-        raise ValueError(S.READ_TOO_SMALL)
+        raise ErrorUsuario(S.READ_TOO_SMALL)
     return coerce_decimal_commas(df)
 
 

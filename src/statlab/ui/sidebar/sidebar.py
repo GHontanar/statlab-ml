@@ -1,22 +1,25 @@
-"""Barra lateral de proceso: una tarjeta por paso del módulo activo."""
+"""Barra lateral de proceso: una tarjeta por paso del módulo activo, sincronizada con la sesión."""
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QLabel, QScrollArea, QVBoxLayout, QWidget
 
 from statlab import strings_es as S
-from statlab.core.dataset import Dataset
-from statlab.modules.base import AnalysisModule, EstadoPaso
+from statlab.core.flow import EstadoPaso
+from statlab.ui.session import SessionController
 from statlab.ui.sidebar.step_card import StepCard
-from statlab.ui.sidebar.variables import VariablesSummary
 
 
 class Sidebar(QScrollArea):
-    def __init__(self, module: AnalysisModule, parent: QWidget | None = None):
+    change_data_requested = Signal()
+
+    def __init__(self, session: SessionController, parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("Sidebar")
         self.setWidgetResizable(True)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.session = session
+        self.pasos = session.module.pasos()
 
         content = QWidget()
         content.setObjectName("SidebarContent")
@@ -32,29 +35,43 @@ class Sidebar(QScrollArea):
         layout.addWidget(title)
 
         self.cards: dict[str, StepCard] = {}
-        for i, paso in enumerate(module.pasos(), start=1):
-            card = StepCard(i, paso.titulo)
+        for i, paso in enumerate(self.pasos, start=1):
+            card = StepCard(i, paso.titulo, paso.boton)
+            card.set_content(paso.crear_widget(session))
             self.cards[paso.id] = card
             layout.addWidget(card)
+            if paso.id == "datos":
+                card.reopen_requested.connect(self.change_data_requested)
+            else:
+                card.reopen_requested.connect(lambda p=paso.id: session.reopen(p))
+            card.primary_clicked.connect(lambda p=paso.id: session.complete(p))
+            card.recalc_clicked.connect(lambda p=paso.id: session.recalculate(p))
+            card.cancel_clicked.connect(lambda p=paso.id: session.cancel(p))
         layout.addStretch(1)
         self.setWidget(content)
 
-        self.variables = VariablesSummary()
-        self.variables.hide()
-        self.cards["variables"].set_content(self.variables)
+        for signal in (session.flow_changed, session.roles_changed, session.rows_changed, session.dataset_changed):
+            signal.connect(self.refresh)
+        session.step_updated.connect(self.refresh)
+        session.step_running.connect(self.refresh)
+        session.step_progress.connect(lambda p, f: self.cards[p].set_progress(f))
+        self.refresh()
 
-        first = self.cards["datos"]
-        first.set_state(EstadoPaso.ACTIVO)
-        first.set_summary(S.STEP_DATA_HINT)
-
-    def show_dataset(self, ds: Dataset) -> None:
-        # M1: estados mínimos; el stepper completo con invalidación llega en M2.
-        data = self.cards["datos"]
-        data.set_state(EstadoPaso.HECHO)
-        data.set_summary(S.DATA_SUMMARY.format(name=ds.fuente, rows=ds.n_filas, cols=len(ds.columnas)))
-        self.cards["variables"].set_state(EstadoPaso.ACTIVO)
-        self.variables.show()
-        self.update_variables(ds)
-
-    def update_variables(self, ds: Dataset) -> None:
-        self.variables.update_from(ds)
+    def refresh(self, *_args) -> None:
+        estado = self.session.estado
+        for paso in self.pasos:
+            card = self.cards[paso.id]
+            state = estado.flujo[paso.id]
+            # Los avisos explican por qué el botón principal no está disponible.
+            errors = self.session.validate(paso.id) if state == EstadoPaso.ACTIVO and paso.boton else []
+            running = self.session.running(paso.id)
+            if running and paso.automatico:
+                errors = []  # la vista previa ya dice «Calculando…»
+            card.update_view(
+                state,
+                paso.resumen(estado),
+                errors,
+                running,
+                can_recalc=paso.calcula,
+                edit_text=S.CHANGE if paso.id == "datos" else S.EDIT,
+            )

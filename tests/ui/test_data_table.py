@@ -102,7 +102,7 @@ def test_shortcuts_and_bar(loaded, qtbot):
     assert "tph" not in ds.roles
 
     # Resumen del paso 2 en tiempo real.
-    summary = loaded.sidebar.variables
+    summary = loaded.sidebar.cards["variables"].content
     assert summary.model.label.text() == "Modelo (6)"
     assert summary.descr.label.text() == "Descriptivas (2)"
     assert "Identificador: id" in summary.facts.text()
@@ -162,8 +162,8 @@ def test_row_selection_and_bar(loaded, qtbot, monkeypatch):
     qtbot.mouseClick(_bar_button(panel.row_bar, "Excluir del análisis"), Qt.MouseButton.LeftButton)
     ds = loaded.session.dataset
     assert ds.excluidas == {2, 3, 4, 5}
-    assert "236 de 240" in loaded.sidebar.variables.facts.text()
-    assert loaded.sidebar.variables.all_rows.isVisible()
+    assert "236 de 240" in loaded.sidebar.cards["variables"].content.facts.text()
+    assert loaded.sidebar.cards["variables"].content.all_rows.isVisible()
 
     panel.select_rows([0, 1])
     monkeypatch.setattr("statlab.ui.data_table.panel.QInputDialog.getText", lambda *a, **k: ("niños", True))
@@ -171,7 +171,7 @@ def test_row_selection_and_bar(loaded, qtbot, monkeypatch):
     assert ds.subgrupos == {"niños": [0, 1]}
     qtbot.mouseClick(_bar_button(panel.row_bar, "Analizar solo estas"), Qt.MouseButton.LeftButton)
     assert ds.filas_activas().tolist() == [0, 1]
-    qtbot.mouseClick(loaded.sidebar.variables.all_rows, Qt.MouseButton.LeftButton)
+    qtbot.mouseClick(loaded.sidebar.cards["variables"].content.all_rows, Qt.MouseButton.LeftButton)
     assert not ds.filtro_filas_activo
 
 

@@ -127,3 +127,50 @@ SUM_DISTINCT = "Valores distintos"
 SUM_NEGATIVE = "Valores negativos"
 SUM_MORE_LEVELS = "{n} niveles más"
 CLOSE = "Cerrar"
+
+# Flujo de pasos
+CONTINUE = "Continuar"
+RECALCULATE = "Recalcular"
+EDIT = "Editar"
+CHANGE = "Cambiar"
+STALE_NOTE = "Desactualizado: has cambiado un paso anterior."
+STALE_BLOCKED = "Recalcula antes «{step}»."
+RUNNING = "Calculando…"
+CANCEL = "Cancelar"
+CALC_ERROR = "No se ha podido completar el cálculo."
+CALC_ERROR_DETAIL = "Ha ocurrido un error inesperado al calcular «{step}». Revisa los datos y vuelve a intentarlo."
+NEXT_MILESTONE = "Este paso estará disponible en la próxima versión."
+VAL_MIN_VARS = "Elige al menos 2 variables numéricas para el modelo (ahora hay {n})."
+VAL_MIN_ROWS = "Solo hay {n} filas para analizar; se necesitan al menos {min}."
+VAL_EMPTY_VAR = "Sin ningún valor en las filas elegidas: {cols}. Quítalas del modelo."
+
+# Paso 3 (preprocesado)
+PREP_MISSING = "Valores perdidos"
+PREP_NEIGHBORS = "Vecinos"
+PREP_SCALING = "Escalado"
+PREP_RESULT = "{n} filas analizadas · {excl} excluidas · {imp} celdas imputadas"
+PREP_SUMMARY_MISSING = "Perdidos: {method} ({imp} celdas imputadas)"
+PREP_SUMMARY_MISSING_KNN = "Perdidos: KNN, {k} vecinos ({imp} celdas imputadas)"
+PREP_SUMMARY_COMPLETE = "Perdidos: casos completos ({excl} filas excluidas)"
+PREP_SUMMARY_SCALING = "Escalado: {method}"
+PREP_LOG = "log(1+x): {cols}"
+SCALING_SHORT = {"standard": "z-score", "robust": "robusto (mediana/RIC)", "none": "sin escalar"}
+MISSING_SHORT = {"complete": "casos completos", "mean": "media", "median": "mediana", "knn": "KNN"}
+HELP_MISSING = (
+    "Cómo se rellenan los valores que faltan. KNN estima cada valor a partir de los pacientes más "
+    "parecidos; «casos completos» descarta a quien tenga algún valor perdido en las variables del modelo."
+)
+HELP_NEIGHBORS = (
+    "Cuántos pacientes parecidos se usan para estimar cada valor que falta. 5 es un buen punto de partida."
+)
+HELP_SCALING = (
+    "Pone las variables en una escala comparable para que ninguna pese más solo por sus unidades. "
+    "z-score es lo habitual; «robusto» resiste mejor los valores extremos."
+)
+PREP_MISSING_OPTIONS = {
+    "knn": "KNN (pacientes parecidos)",
+    "median": "Mediana",
+    "mean": "Media",
+    "complete": "Casos completos",
+}
+PREP_SCALING_OPTIONS = {"standard": "z-score", "robust": "Robusto (mediana/RIC)", "none": "Sin escalar"}

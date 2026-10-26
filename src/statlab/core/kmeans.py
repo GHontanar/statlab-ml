@@ -25,6 +25,8 @@ from sklearn.metrics import (
 )
 from sklearn.preprocessing import RobustScaler, StandardScaler
 
+from statlab.core.errors import ErrorUsuario
+
 IMPUTATION_METHODS = {
     "complete": "Casos completos (excluir filas con NA)",
     "mean": "Media",
@@ -95,7 +97,7 @@ def _scaler(kind: str):
         return RobustScaler()
     if kind == "none":
         return None
-    raise ValueError(f"Escalado desconocido: {kind}")
+    raise ErrorUsuario(f"Escalado desconocido: {kind}")
 
 
 def prepare(
@@ -114,9 +116,9 @@ def prepare(
         vecinos no esté dominada por la variable con mayor rango.
     """
     if len(cols) < 2:
-        raise ValueError("Selecciona al menos 2 variables numéricas.")
+        raise ErrorUsuario("Selecciona al menos 2 variables numéricas.")
     if imputation not in IMPUTATION_METHODS:
-        raise ValueError(f"Imputación desconocida: {imputation}")
+        raise ErrorUsuario(f"Imputación desconocida: {imputation}")
 
     warnings: list[str] = []
     data = df[cols].apply(pd.to_numeric, errors="coerce")
@@ -124,7 +126,7 @@ def prepare(
 
     all_na = [c for c in cols if data[c].isna().all()]
     if all_na:
-        raise ValueError(f"Variables sin ningún valor: {', '.join(all_na)}")
+        raise ErrorUsuario(f"Variables sin ningún valor: {', '.join(all_na)}")
 
     applied_log: list[str] = []
     for c in log_cols:
@@ -141,6 +143,8 @@ def prepare(
     else:
         data = data.dropna(how="all")
     n_dropped = n_input - len(data)
+    if len(data) < 10:
+        raise ErrorUsuario(f"Solo quedan {len(data)} filas tras la preparación; son muy pocas para clustering.")
     n_imputed = 0 if imputation == "complete" else int(data.isna().sum().sum())
 
     constant = [c for c in cols if data[c].nunique(dropna=True) <= 1]
@@ -167,8 +171,6 @@ def prepare(
 
     if scaling == "none":
         warnings.append("Sin escalar: k-means usa distancia euclídea y las variables con más rango pesarán más.")
-    if len(data) < 10:
-        raise ValueError(f"Solo quedan {len(data)} filas tras la preparación; son muy pocas para clustering.")
     pct_imp = 100 * n_imputed / max(arr.size, 1)
     if pct_imp > 20:
         warnings.append(f"Se ha imputado el {pct_imp:.0f}% de las celdas: interpreta los clusters con cautela.")

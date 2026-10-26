@@ -13,6 +13,7 @@ import pandas as pd
 
 from statlab import strings_es as S
 from statlab.core import fmt
+from statlab.core.errors import ErrorUsuario
 
 
 class Rol(StrEnum):
@@ -156,7 +157,7 @@ class Dataset:
     def guardar_subgrupo(self, nombre: str, filas: list[int]) -> None:
         nombre = nombre.strip()
         if not nombre:
-            raise ValueError(S.SUBGROUP_EMPTY_NAME)
+            raise ErrorUsuario(S.SUBGROUP_EMPTY_NAME)
         self.subgrupos[nombre] = sorted(set(filas))
 
     def resumen_filas(self) -> str:
@@ -164,6 +165,26 @@ class Dataset:
         if not self.filtro_filas_activo:
             return S.ROWS_ALL.format(n=n)
         return S.ROWS_SOME.format(n=n, total=self.n_filas)
+
+
+MIN_FILAS = 10
+
+
+def validar_variables(ds: Dataset) -> list[str]:
+    """Mensajes que impiden pasar del paso «Variables y filas» (vacío = válido)."""
+    errores = []
+    modelo = ds.con_rol(Rol.MODELO)
+    if len(modelo) < 2:
+        errores.append(S.VAL_MIN_VARS.format(n=len(modelo)))
+    filas = ds.filas_activas()
+    if len(filas) < MIN_FILAS:
+        errores.append(S.VAL_MIN_ROWS.format(n=len(filas), min=MIN_FILAS))
+    elif modelo:
+        sub = ds.df.iloc[filas][modelo]
+        vacias = [c for c in modelo if sub[c].isna().all()]
+        if vacias:
+            errores.append(S.VAL_EMPTY_VAR.format(cols=", ".join(f"«{c}»" for c in vacias)))
+    return errores
 
 
 def column_summary(series: pd.Series) -> list[tuple[str, str]]:
