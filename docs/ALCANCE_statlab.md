@@ -15,6 +15,9 @@ sin código y sin conexión**, con tres módulos sobre una base común:
 | ¿Hay grupos que no conozco? | **ML no supervisado** | k-means, jerárquico, GMM, k-medoids… |
 | ¿Puedo predecir un desenlace? | **ML supervisado** | Regresión logística penalizada, Random Forest, gradient boosting |
 
+Alrededor de los tres módulos hay **herramientas transversales** que sirven a todos, con la
+**preparación de datos** a la cabeza (§8), y otros **módulos de análisis** posteriores (§9).
+
 La aplicación se organiza **por la pregunta, no por la técnica**. Una misma técnica puede aparecer
 en dos módulos con otro objetivo. Por ejemplo, la regresión logística:
 
@@ -65,6 +68,7 @@ Hoy la base sirve a un único módulo con un único análisis por sesión. Para 
 | Pantalla inicial | «Abrir datos» | Más «¿Qué quieres hacer?», con las tres preguntas de la §1 |
 | Informe | Un análisis | Secciones componibles: un informe puede reunir Tabla 1, clusters y comparación |
 | Subgrupos de filas | Se guardan pero no se reutilizan | Analizar o comparar un subgrupo |
+| Datos de la sesión | La tabla tal como se leyó | **Datos originales intactos + receta de preparación** (§8.1) que produce la tabla de análisis |
 
 El contrato `AnalysisModule` (pasos, ejecución en segundo plano, paneles y exportes) se mantiene.
 Cada algoritmo o análisis nuevo es un módulo que se enchufa a él.
@@ -199,7 +203,117 @@ reutiliza la base de §7.4) y validación externa en un segundo archivo.
 **Supervivencia** se coloca en estadística clásica aunque esté a caballo entre módulos. El ML la
 reutilizará con los mismos roles de tiempo y evento y la misma curva de Kaplan-Meier.
 
-## 8. Distribución en el hospital (bloqueante)
+## 8. Herramientas transversales
+
+### 8.1 Preparación de datos (prioritaria)
+
+Un clínico pasa más tiempo limpiando el Excel que analizándolo. Hoy StatLab da por hecho que los
+datos llegan limpios. La preparación es un **modo propio**, con su barra lateral de pasos, al que
+se entra al abrir un archivo y al que se puede volver en cualquier momento.
+
+**Principios:**
+
+- **El archivo original nunca se modifica.** Cada cambio es un paso de una **receta** que se guarda
+  en la sesión y se puede editar, desactivar, reordenar o borrar. La tabla de análisis es el
+  resultado de aplicar la receta a los datos originales. La receta permite además las plantillas
+  (§8.6) y exportar el análisis como script (§8.4).
+- **Nada se corrige en silencio.** El programa detecta y propone; el usuario acepta, con una
+  **vista previa** del antes y el después y el número de celdas afectadas.
+- **Deshacer siempre.** Cambiar un paso de la receta marca como desactualizados los análisis que
+  dependen de él, con la misma invalidación en cascada que ya tienen los pasos.
+
+**Pasos:**
+
+1. **Importación robusta**
+   - elegir la hoja de un Excel;
+   - cabecera que no está en la primera fila;
+   - filas de totales o notas al final;
+   - celdas combinadas;
+   - varias cabeceras apiladas.
+
+   Lo detecta el programa y se confirma en una vista previa.
+2. **Revisión automática de calidad:** una lista de problemas, cada uno con su botón «Revisar».
+   - **Duplicados**, de filas completas o de ID.
+   - **Valores imposibles o improbables:** rangos fisiológicos por variable, configurables en el diccionario (§8.2).
+   - **Unidades mezcladas:** por ejemplo, Hb en g/dL y g/L en la misma columna, detectada por una distribución bimodal con razón ×10. Se propone convertir, nunca se convierte sin confirmar.
+   - **Categorías incoherentes:** «M», «Hombre», «varón », mayúsculas, espacios, tildes.
+   - **Números guardados como texto:** «<0,5», «>200», «12,3 mg».
+   - **Variables casi constantes o casi vacías.**
+   - **Fechas ambiguas:** 03/04 puede ser dd/mm o mm/dd. Se decide por los valores mayores de 12 y, si no basta, se pregunta.
+3. **Tipos y diccionario:** el tipo de cada columna (numérica, categórica, ordinal, fecha, ID, texto
+   libre que no se analiza) y su entrada en el diccionario (§8.2).
+4. **Recodificar:**
+   - unir categorías arrastrándolas a un grupo;
+   - ordenar categorías ordinales;
+   - categorizar una numérica por cortes, con cortes clínicos predefinidos (p. ej. IMC según la OMS) o por cuantiles;
+   - invertir ítems.
+5. **Nuevas variables**, con un catálogo guiado de fórmulas clínicas, cada una con su referencia
+   bibliográfica y validada con casos publicados:
+   - IMC y superficie corporal;
+   - filtrado glomerular (CKD-EPI 2021, sin raza);
+   - edad a partir de la fecha de nacimiento;
+   - **tiempo de seguimiento y evento a partir de fechas** (inclusión, evento, último contacto, censura);
+   - escalas sencillas (suma de ítems);
+   - fórmula libre con una calculadora visual, sin escribir código.
+6. **Unir archivos por ID**
+   - con un informe de emparejamiento: cuántos casan, cuántos están solo en un archivo, IDs duplicados;
+   - pasar de **formato largo a ancho** y viceversa, para medidas repetidas.
+7. **Exclusiones con motivo:** cada filtro lleva un motivo («< 18 años», «sin analítica basal») y
+   alimenta el **diagrama de flujo de pacientes** (§8.4).
+
+### 8.2 Diccionario de variables
+
+Para cada variable: etiqueta, unidad, descripción, rango plausible, codificación de las categorías
+y valores que significan «perdido» (p. ej. 999).
+
+- Se define una vez y lo usan **todas las tablas, figuras e informes**: el informe dice
+  «Hemoglobina (g/dL)», no `hb_gdl`.
+- Se puede **importar y exportar** como CSV o Excel y reutilizar entre proyectos.
+
+### 8.3 Datos faltantes a fondo
+
+- **Exploración:** mapa de patrones de valores perdidos y comparación de pacientes con y sin datos
+  para orientar si la pérdida es aleatoria.
+- **Imputación múltiple (MICE):** combinación de resultados con las reglas de Rubin en los análisis
+  de estadística clásica y opción de usarla en los de ML.
+- Sustituye y amplía el KNN de la v1, que se mantiene como opción sencilla.
+
+### 8.4 Reproducibilidad y trazabilidad
+
+- **Diagrama de flujo de pacientes** (tipo STROBE), generado a partir de las exclusiones con motivo
+  (§8.1, paso 7). Editable en textos y exportable al informe.
+- **Registro** de cada paso, con fecha, versión de StatLab y huella (hash) del archivo de datos.
+- **Exportar el análisis como script** (R o Python: ⚠ Decide Guzmán) que reproduce la receta y el
+  análisis, para revisores y coautores.
+
+### 8.5 Anonimización antes de compartir
+
+- Seudonimizar IDs, con la tabla de correspondencia guardada aparte.
+- Quitar identificadores directos.
+- Desplazar fechas de forma coherente por paciente.
+- Generalizar edad y códigos postales.
+- **Aviso de combinaciones raras** que permitan reidentificar (comprobación de *k*-anonimato).
+- Exporta una copia anonimizada; los datos originales no se tocan.
+
+### 8.6 Plantillas de análisis
+
+Guardar la receta y la configuración del análisis **sin los datos** y aplicarlas a un archivo nuevo
+con las mismas columnas, por ejemplo la actualización anual de un registro. Si faltan o cambian
+columnas, el programa lo dice antes de aplicar.
+
+## 9. Otros módulos de análisis (después de los tres principales)
+
+| Módulo | Contenido | Comentario |
+|---|---|---|
+| **Pruebas diagnósticas y escalas de riesgo** | ROC, comparación de AUC (DeLong), sensibilidad y especificidad con IC, **convertir una regresión en una escala de puntos**, nomogramas | Puente entre estadística clásica y supervisado: reutiliza casi todo |
+| **Datos longitudinales** | Medidas repetidas: modelos mixtos, GEE, **trayectorias** (modelos de clases latentes de crecimiento) | Las trayectorias conectan con el no supervisado. Necesita el formato largo de §8.1 |
+| **Inferencia causal observacional** | *Propensity score* (emparejamiento, IPTW), equilibrio entre grupos (diferencias estandarizadas, *love plot*), E-value | Muy demandado. Delicado para no técnicos: tendría que ser muy guiado |
+| **Cuestionarios y escalas** | Análisis factorial exploratorio y confirmatorio, alfa de Cronbach, omega, validación de escalas | Habitual en enfermería y calidad de vida |
+| **Diseño del estudio** | Tamaño muestral y potencia, listas de aleatorización | Se usa antes de tener datos: otra puerta de entrada a la app |
+| **Concordancia** | Kappa, CCI, Bland-Altman | Pequeño (ya citado en §7.5) |
+| Meta-análisis | Forest plot, heterogeneidad | Datos de estudios, no de pacientes: encaja peor. Solo si hay demanda |
+
+## 10. Distribución en el hospital (bloqueante)
 
 En la prueba de la v0.1.0, el antivirus del hospital **bloquea** StatLab; en un PC personal
 funciona sin problemas. Antes de seguir hay que saber el mensaje exacto, porque hay dos causas posibles:
@@ -214,49 +328,60 @@ funciona sin problemas. Antes de seguir hay que saber el mensaje exacto, porque 
 Lo previsible es que en un hospital acaben haciendo falta el instalador y la firma. En la v1
 quedaron fuera de alcance; ahora frenan la adopción.
 
-## 9. Fases
+## 11. Fases
 
 Cada fase termina en una versión publicada, con tests en CI en los tres SO y el autodiagnóstico
 (`--self-test`) ampliado.
 
 | Fase | Versión | Contenido | Criterio de aceptación |
 |---|---|---|---|
-| **F1** | v0.2 | Distribución en el hospital (§8); medir el rendimiento con 5.000 filas | StatLab arranca en un PC del hospital; tiempos medidos y documentados |
-| **F2** | v0.3 | Sesión con varias soluciones (`.statlab` v2 con migración); **jerárquico** y **GMM**; **comparación de soluciones** (§5.2) | Con la cohorte de prueba, k-means y GMM con k=4 dan un ARI ≥ 0,90 y el Sankey enlaza con la tabla; las sesiones v1 se abren |
-| **F3** | v0.4 | **Sensibilidad** generalizada (§5.3); k-medoids con Gower | El informe incluye todos los escenarios y la conclusión automática; la robustez por paciente aparece en la tabla |
-| **F4** | v0.5 | Base generalizada (roles, pipeline, pantalla «¿Qué quieres hacer?»); **Tabla 1** y **contrastes** | La Tabla 1 exportada a Word coincide con R (`tableone`) en un dataset de referencia |
-| **F5** | v0.6 | **Supervisado**: logística penalizada, RF, gradient boosting; validación, calibración, curva de decisión, interpretabilidad | Sin fuga de información (test específico); AUC y calibración coinciden con una referencia en scikit-learn |
-| **F6** | v0.7 | **Supervivencia**: KM, log-rank y Cox; regresión inferencial (§7.3) | HR e IC coinciden con R (`survival`) en un dataset de referencia |
-| Más adelante | — | §5.1 «Más adelante», §6.3, §7.5, otros idiomas | — |
+| **F1** | v0.2 | Distribución en el hospital (§10); medir el rendimiento con 5.000 filas | StatLab arranca en un PC del hospital; tiempos medidos y documentados |
+| **F2** | v0.3 | **Preparación de datos**, núcleo (§8.1, pasos 1–5 y 7): receta no destructiva, revisión de calidad, tipos, recodificar, nuevas variables con fechas; **diccionario** (§8.2); **diagrama de flujo de pacientes** (§8.4) | Un Excel «sucio» de referencia (hoja 2, cabecera en la fila 3, unidades mezcladas, categorías incoherentes, fechas dd/mm) queda listo sin escribir código; la receta se reaplica idéntica al reabrir la sesión; CKD-EPI 2021 coincide con los casos publicados |
+| **F3** | v0.4 | Sesión con varias soluciones (`.statlab` v2 con migración); **jerárquico** y **GMM**; **comparación de soluciones** (§5.2) | Con la cohorte de prueba, k-means y GMM con k=4 dan un ARI ≥ 0,90 y el Sankey enlaza con la tabla; las sesiones v1 se abren |
+| **F4** | v0.5 | **Sensibilidad** generalizada (§5.3); k-medoids con Gower | El informe incluye todos los escenarios y la conclusión automática; la robustez por paciente aparece en la tabla |
+| **F5** | v0.6 | Base generalizada (roles, pipeline, pantalla «¿Qué quieres hacer?»); **Tabla 1** y **contrastes**; **datos faltantes a fondo** (§8.3) | La Tabla 1 exportada a Word coincide con R (`tableone`) en un dataset de referencia; MICE combinado coincide con R (`mice`) |
+| **F6** | v0.7 | **Supervisado**: logística penalizada, RF, gradient boosting; validación, calibración, curva de decisión, interpretabilidad | Sin fuga de información (test específico); AUC y calibración coinciden con una referencia en scikit-learn |
+| **F7** | v0.8 | **Supervivencia**: KM, log-rank y Cox; regresión inferencial (§7.3) | HR e IC coinciden con R (`survival`) en un dataset de referencia |
+| **F8** | v0.9 | **Unir archivos** y formato largo/ancho (§8.1, paso 6); **plantillas** (§8.6); **pruebas diagnósticas y escalas de riesgo** (§9) | Una plantilla aplicada a un archivo nuevo da el mismo resultado que el análisis hecho a mano |
+| Más adelante | — | Anonimización (§8.5), exportar como script (§8.4), resto de §9 (longitudinal, causal, cuestionarios, diseño, concordancia), §5.1 «Más adelante», §6.3, otros idiomas | — |
 
 Orden pensado para **reutilizar al máximo**:
-- F2 apoya los algoritmos nuevos en el motor de k-means;
-- F3 apoya la sensibilidad en la comparación de soluciones;
-- F4 construye la base que F5 y F6 necesitan (roles de desenlace, tiempo y evento; pipeline reutilizable).
+- F2 va primero porque todos los módulos parten de una tabla limpia, y la supervivencia necesita
+  tiempos de seguimiento calculados a partir de fechas;
+- F3 apoya los algoritmos nuevos en el motor de k-means;
+- F4 apoya la sensibilidad en la comparación de soluciones;
+- F5 construye la base que F6 y F7 necesitan (roles de desenlace, tiempo y evento; pipeline reutilizable);
+- F8 reutiliza la receta de F2 para las plantillas, y supervisado y estadística clásica para las pruebas diagnósticas.
 
-## 10. Dependencias previstas
+## 12. Dependencias previstas
 
 | Dependencia | Para | Peso | Estado |
 |---|---|---|---|
+| pandas, openpyxl (ya incluidas) | Preparación de datos, uniones, formato largo/ancho | — | Disponible |
 | scikit-learn, scipy (ya incluidas) | Jerárquico, GMM, RF, HistGradientBoosting, contrastes | — | Disponible |
-| `statsmodels` | Regresión inferencial, Poisson, diagnósticos | Medio | ⚠ Decide Guzmán |
+| `statsmodels` | Regresión inferencial, Poisson, diagnósticos, MICE, modelos mixtos, GEE | Medio | ⚠ Decide Guzmán |
 | `lifelines` | Kaplan-Meier, log-rank, Cox | Ligero (Python puro) | ⚠ Decide Guzmán |
 | `scikit-learn-extra` o implementación propia | k-medoids | Ligero | ⚠ Decide Guzmán |
 | `xgboost` | Gradient boosting | Pesado | ⚠ Decide Guzmán (alternativa sin coste: HistGradientBoosting) |
 | `shap` | Interpretabilidad | Medio-pesado | ⚠ Decide Guzmán (alternativa: permutación y dependencia parcial) |
 | `hdbscan`, `umap-learn`, clases latentes | Más adelante | Pesado | Más adelante |
+| `factor_analyzer` / `semopy` | Análisis factorial exploratorio y confirmatorio (§9) | Ligero / medio | Más adelante |
 
-## 11. Fuera de alcance
+## 13. Fuera de alcance
 
-Deep learning, imágenes y texto libre · LLM o lenguaje natural · uso en decisiones clínicas sobre
-pacientes individuales · conexión a historias clínicas o bases de datos en red · cálculo en la nube ·
+Deep learning, imágenes y texto libre de historias clínicas (procesamiento de lenguaje natural) ·
+LLM o lenguaje natural en la interfaz · uso en decisiones clínicas sobre pacientes individuales ·
+conexión a la historia clínica electrónica o a bases de datos en red · cálculo en la nube ·
 colaboración en tiempo real.
 
-## 12. Decisiones pendientes
+## 14. Decisiones pendientes
 
 1. ¿Qué mensaje exacto da el bloqueo en el hospital? (Decide si F1 es el instalador, la firma o ambos.)
 2. ¿Se paga un certificado de firma de código?
 3. ¿Se permiten las categóricas en el modelo? (Reabre una decisión cerrada de la v1.)
 4. ¿Se puede aplicar un modelo a datos nuevos, y con qué limitaciones? (§3)
-5. Dependencias de la §10, una por una.
+5. Dependencias de la §12, una por una.
 6. ¿El límite de 5.000 filas se mantiene, o se fija por algoritmo tras medir el rendimiento?
+7. ¿La preparación de datos (F2) va antes que los algoritmos no supervisados nuevos (F3), como propone este documento?
+8. El script exportado (§8.4), ¿en R, en Python o en ambos?
+9. ¿Qué fórmulas clínicas entran en el catálogo inicial de nuevas variables (§8.1, paso 5)? Conviene una lista corta validada por especialidad.
