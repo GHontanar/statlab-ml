@@ -2,13 +2,20 @@ name: Build
 
 # Paquetes de escritorio con PyInstaller (onedir) para Windows, Linux y macOS.
 # - Al publicar una etiqueta v* se adjuntan a la Release de GitHub.
-# - También se puede lanzar a mano, y corre cuando cambia el empaquetado.
+# - También se puede lanzar a mano; si se indica «version» (p. ej. v0.1.0), crea esa
+#   etiqueta sobre el commit compilado y publica la Release con los paquetes.
+# - Corre también cuando cambia el empaquetado (sin publicar nada).
 on:
   push:
     tags: ["v*"]  # en las etiquetas no se aplica el filtro de rutas
     branches: ["**"]
     paths: ["packaging/**", ".github/workflows/build.yml", "src/statlab/selftest.py"]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Etiqueta de la versión a publicar (p. ej. v0.1.0). Vacío = solo compilar."
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -103,7 +110,7 @@ jobs:
 
   release:
     name: Adjuntar a la Release
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(inputs.version, 'v')
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -115,5 +122,8 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.version || github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          name: StatLab ${{ inputs.version || github.ref_name }}
           files: paquetes/*
           generate_release_notes: true
