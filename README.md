@@ -79,15 +79,16 @@ uv run pyinstaller packaging/statlab.spec --noconfirm   # → dist/StatLab/ (o d
 El workflow **Build** (`.github/workflows/build.yml`) genera los tres paquetes
 (Windows, Linux y macOS) con PyInstaller en modo *onedir*. Comprueba cada
 ejecutable con `--self-test`, que recorre el análisis con los datos de ejemplo y
-exporta todos los formatos. Para publicar una versión:
+exporta todos los formatos. Para publicar una versión, cualquiera de estas vías:
 
-```bash
-# 1) sube la versión en pyproject.toml y src/statlab/__init__.py
-git tag v0.1.0 && git push origin v0.1.0   # 2) el workflow adjunta los paquetes a la Release
-```
+- **Subir la versión** en `pyproject.toml` y `src/statlab/__init__.py` y hacer push a la
+  rama principal: si esa versión aún no tiene etiqueta, el workflow la crea y publica
+  la Release con los tres paquetes.
+- **Etiqueta**: `git tag v0.2.0 && git push origin v0.2.0`.
+- **A mano**: pestaña *Actions* → *Build* → *Run workflow*, con `version` = `v0.2.0`
+  (vacío = solo compilar; los paquetes quedan como artefactos del run).
 
-También se puede lanzar a mano desde la pestaña *Actions* (los paquetes quedan
-como artefactos del run). El workflow **Tests** ejecuta ruff y pytest en cada push.
+El workflow **Tests** ejecuta ruff y pytest en cada push.
 
 Limitaciones conocidas: el ejecutable no está firmado (SmartScreen en Windows,
 Gatekeeper en macOS), y el paquete de macOS es solo para Apple Silicon.
