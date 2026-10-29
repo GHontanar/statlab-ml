@@ -89,3 +89,54 @@ def test_invalid_files(tmp_path):
         ses.abrir(bad, mod.crear_estado, mod.id)
     with pytest.raises(ErrorUsuario):
         ses.guardar(tmp_path / "vacia", mod.crear_estado(), mod.id)
+
+
+def test_roundtrip_con_preparacion(tmp_path):
+    from statlab.core.prep.preparacion import de_ejemplo
+    from statlab.core.prep.receta import Paso
+
+    mod = KMeansModule()
+    e = mod.crear_estado()
+    prep = de_ejemplo()
+    prep.receta.añadir(Paso("excluir", {"condicion": "edad < 2", "motivo": "Menores de 2 años"}))
+    prep.receta.añadir(Paso("tipo", {"columna": "sexo", "tipo": "categorica"}))
+    prep.receta.añadir(Paso("calcular", {"destino": "hb_vcm", "formula": "hb / vcm"}))
+    prep.diccionario.entrada("hb").etiqueta = "Hemoglobina"
+    e.preparacion = prep
+    e.dataset, out = prep.dataset()
+    e.dataset.asignar_rol(["hb", "hb_vcm"], Rol.MODELO)
+    e.flujo.completar("datos")
+    path = ses.guardar(tmp_path / "prep", e, mod.id)
+    with zipfile.ZipFile(path) as z:
+        assert {"original.bin", "prep.json"} <= set(z.namelist())
+        assert z.read("original.bin") == sio.example_bytes()
+    otra = ses.abrir(path, mod.crear_estado, mod.id)
+    assert otra.preparacion.receta == prep.receta
+    assert otra.preparacion.diccionario.etiqueta("hb") == "Hemoglobina"
+    assert otra.dataset.excluidas_receta == out.excluidas and out.excluidas
+    assert isinstance(otra.dataset.df["sexo"].dtype, pd.CategoricalDtype)  # se reaplica la receta
+    pd.testing.assert_series_equal(otra.dataset.df["hb_vcm"], e.dataset.df["hb_vcm"])
+    assert otra.dataset.roles == e.dataset.roles
+
+
+def test_sesion_formato_1_se_migra(tmp_path, full_state):
+    mod, e = full_state
+    path = ses.guardar(tmp_path / "v1", e, mod.id)
+    v1 = tmp_path / "v1_viejo.statlab"
+    with zipfile.ZipFile(path) as z, zipfile.ZipFile(v1, "w") as w:
+        for n in z.namelist():
+            data = z.read(n)
+            if n == "meta.json":
+                meta = json.loads(data)
+                meta["formato"] = 1
+                data = json.dumps(meta).encode()
+            if n == "state.json":
+                st = json.loads(data)
+                st.pop("excluidas_receta")
+                data = json.dumps(st).encode()
+            w.writestr(n, data)
+    otra = ses.abrir(v1, mod.crear_estado, mod.id)
+    assert otra.preparacion is not None and otra.preparacion.receta.pasos == []
+    pd.testing.assert_frame_equal(otra.preparacion.leidos, otra.dataset.df)
+    assert otra.dataset.excluidas_receta == {}
+    assert otra.resultados["modelo_final"]["tamanos"] == e.resultados["modelo_final"]["tamanos"]

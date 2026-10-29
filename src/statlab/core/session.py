@@ -4,6 +4,13 @@
 - data.csv     los datos tal como se cargaron (UTF-8, punto decimal, precisión completa)
 - state.json   columnas y tipos, roles, filas, parámetros de cada paso y estado del flujo
 - results.json resultados serializados (sin los objetos de trabajo «_…»)
+- original.bin el archivo de datos original, byte a byte (formato 2)
+- prep.json    opciones de lectura, receta de preparación y diccionario (formato 2)
+
+`data.csv` es la tabla de análisis ya preparada. Al abrir se vuelve a aplicar la
+receta al original (así se recuperan los tipos fecha y categoría); si por lo que
+sea el resultado no coincide con `data.csv`, manda `data.csv`, que es con lo que
+se calcularon los resultados.
 
 Nunca se usa pickle: un archivo de sesión no puede ejecutar código al abrirse.
 Al abrir no se recalcula nada; lo que haga falta para seguir calculando (la
@@ -28,7 +35,7 @@ from statlab.core.errors import ErrorUsuario
 from statlab.core.estado import EstadoSesion, serializable
 from statlab.core.flow import FlujoPasos
 
-FORMATO = 1
+FORMATO = 2
 SUFIJO = ".statlab"
 _ARCHIVOS = ("meta.json", "data.csv", "state.json", "results.json")
 
@@ -54,6 +61,7 @@ def guardar(path: str | Path, estado: EstadoSesion, modulo: str) -> Path:
     }
     state = {
         "fuente": ds.fuente,
+        "excluidas_receta": {str(k): v for k, v in sorted(ds.excluidas_receta.items())},
         "columnas": [{"nombre": c, "tipo": str(ds.df[c].dtype)} for c in ds.columnas],
         "roles": {c: r.value for c, r in ds.roles.items()},
         "log": sorted(ds.log),
@@ -72,6 +80,9 @@ def guardar(path: str | Path, estado: EstadoSesion, modulo: str) -> Path:
         z.writestr("data.csv", csv)
         z.writestr("state.json", _dump(state))
         z.writestr("results.json", _dump(results))
+        if estado.preparacion is not None:
+            z.writestr("original.bin", estado.preparacion.raw)
+            z.writestr("prep.json", _dump(estado.preparacion.to_dict()))
     tmp.replace(path)
     return path
 
@@ -90,6 +101,10 @@ def _leer_datos(raw: bytes, columnas: list[dict]) -> pd.DataFrame:
             df[nombre] = df[nombre].astype(tipo)
         elif tipo == "bool":
             df[nombre] = df[nombre].astype(bool)
+        elif tipo.startswith("datetime64"):
+            df[nombre] = pd.to_datetime(df[nombre].astype(object).where(df[nombre].notna(), None))
+        elif tipo == "category":
+            df[nombre] = df[nombre].astype("category")
     return df[[c["nombre"] for c in columnas]]
 
 
@@ -105,6 +120,8 @@ def abrir(path: str | Path, crear_estado: Callable[[], EstadoSesion], modulo: st
             state = json.loads(z.read("state.json"))
             results = json.loads(z.read("results.json"))
             raw = z.read("data.csv")
+            prep_d = json.loads(z.read("prep.json")) if "prep.json" in nombres else None
+            original = z.read("original.bin") if "original.bin" in nombres else None
     except (zipfile.BadZipFile, json.JSONDecodeError, UnicodeDecodeError) as e:
         raise ErrorUsuario(S.SESSION_INVALID) from e
 
@@ -116,7 +133,10 @@ def abrir(path: str | Path, crear_estado: Callable[[], EstadoSesion], modulo: st
         raise ErrorUsuario(S.SESSION_OTHER_MODULE.format(modulo=meta.get("modulo", "?")))
 
     estado = crear_estado()
-    ds = Dataset(_leer_datos(raw, state["columnas"]), fuente=state.get("fuente", path.name))
+    df = _leer_datos(raw, state["columnas"])
+    estado.preparacion, df = _preparacion(prep_d, original, df, state.get("fuente", path.name))
+    ds = Dataset(df, fuente=state.get("fuente", path.name))
+    ds.excluidas_receta = {int(k): v for k, v in state.get("excluidas_receta", {}).items()}
     ds.roles = {c: Rol(r) for c, r in state["roles"].items() if c in ds.columnas}
     ds.log = {c for c in state["log"] if c in ds.columnas}
     ds.solo_filas = None if state["solo_filas"] is None else set(state["solo_filas"])
@@ -130,8 +150,27 @@ def abrir(path: str | Path, crear_estado: Callable[[], EstadoSesion], modulo: st
     return estado
 
 
+def _preparacion(prep_d, original, df: pd.DataFrame, fuente: str):
+    """Reconstruye la preparación. Devuelve (preparación, tabla de análisis)."""
+    from statlab.core.prep.preparacion import Preparacion
+
+    if prep_d is None or original is None:  # sesión de formato 1: el CSV guardado pasa a ser el «original»
+        return Preparacion.desde_dataframe(fuente, df), df
+    prep = Preparacion.from_dict(prep_d, original)
+    try:
+        rehecho = prep.aplicar().df
+    except ErrorUsuario:
+        return prep, df
+    mismos = list(rehecho.columns) == list(df.columns) and len(rehecho) == len(df)
+    return prep, (rehecho if mismos else df)
+
+
 def migrar(formato: int, state: dict, results: dict) -> tuple[dict, dict]:
-    """Adapta sesiones de formatos anteriores al actual (de momento solo existe el 1)."""
+    """Adapta sesiones de formatos anteriores al actual.
+
+    1 → 2: no había preparación (la añade `_preparacion`) ni filas excluidas por la receta."""
     if formato < 1:
         raise ErrorUsuario(S.SESSION_INVALID)
+    if formato < 2:
+        state.setdefault("excluidas_receta", {})
     return state, results

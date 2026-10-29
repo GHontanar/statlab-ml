@@ -405,3 +405,92 @@ EXPORT_WRITE_ERROR = (
     "No se ha podido escribir en «{path}». Comprueba que la carpeta existe, que tienes permiso y que el "
     "archivo no está abierto en otro programa."
 )
+
+# Lectura robusta (Excel)
+READ_HEADER_ROW = "La cabecera está en la fila {row}: se han ignorado las filas de encima."
+READ_TWO_HEADERS = "La cabecera ocupa dos filas (celdas combinadas): se han unido los nombres."
+READ_TRAILING = "Se han ignorado {n} filas al final (totales o notas)."
+
+# Fórmulas
+FORMULA_EMPTY = "Escribe una fórmula."
+FORMULA_CHAR = "Hay un carácter que no entiendo («{char}», posición {pos})."
+FORMULA_EXPECTED = "Falta «{what}» (posición {pos})."
+FORMULA_INCOMPLETE = "La fórmula está incompleta."
+FORMULA_UNEXPECTED = "No esperaba «{tok}» en la posición {pos}."
+FORMULA_UNKNOWN_FUNC = "No conozco la función «{name}»."
+FORMULA_NARGS = "La función {name} no lleva ese número de argumentos (se separan con «;»)."
+FORMULA_NO_COLUMN = "No hay ninguna columna «{col}». Si el nombre tiene espacios, escríbelo entre corchetes: [{col}]."
+FORMULA_NOT_NUMBER = "Hay texto donde se esperaba un número. Revisa el tipo de las columnas de la fórmula."
+FORMULA_NOT_DATE = "Las funciones AÑOS, MESES y DIAS necesitan columnas de tipo fecha."
+FORMULA_DATE_ARITH = "Para restar fechas usa AÑOS(inicio; fin), MESES(…) o DIAS(…)."
+FORMULA_TEXT_ORDER = "Los textos solo se pueden comparar con = o <>."
+
+# Receta de preparación
+PREP_TYPE_NAMES = {
+    "numerica": "numérica", "categorica": "categórica", "ordinal": "ordinal", "fecha": "fecha", "texto": "texto libre",
+}
+PREP_DATE_FORMATS = {"dma": "día/mes/año", "mda": "mes/día/año", "amd": "año-mes-día"}
+PREP_NO_COLUMN = "La columna «{col}» ya no existe (¿se ha renombrado o quitado en un paso anterior?)."
+PREP_BAD_TYPE = "Tipo de columna desconocido: {tipo}."
+PREP_BAD_STEP = "Paso desconocido: {tipo}."
+PREP_STEP_FAILED = "No se ha podido aplicar este paso ({detail})."
+PREP_UNREADABLE = "{n} valores no se han podido leer y quedan como perdidos."
+PREP_CUT_LABELS = "Hacen falta {n} etiquetas, una por intervalo."
+PREP_ALL = "Todos"
+PREP_ALL_COLUMNS = "todas las columnas"
+PREP_NO_NAME = "Escribe el nombre de la nueva columna."
+PREP_NAME_TAKEN = "Ya hay una columna «{col}»."
+PREP_NO_REASON = "Escribe el motivo de la exclusión: aparecerá en el diagrama de flujo de pacientes."
+PREP_EXCLUDE_NA = "En {n} filas falta el dato de la condición: no se excluyen."
+PREP_DUPLICATE_REASON = "Duplicado"
+PREP_NEGATIVE_TIME = "{n} tiempos negativos: revisa el orden de las fechas."
+PREP_NO_FOLLOWUP = "En {n} filas falta la fecha de inicio o la de final: tiempo perdido."
+PREP_DESC_TYPE = "«{col}» como {tipo}"
+PREP_DESC_MISSING = "Perdidos en {cols}: {que}"
+PREP_DESC_RECODE = "Recodificar «{col}» ({n} valores)"
+PREP_DESC_UNITS = "«{col}» × {factor}"
+PREP_DESC_CUT = "Categorizar «{col}» → {dest}"
+PREP_DESC_DATES = "{dest} = tiempo de {a} a {b}"
+PREP_DESC_FOLLOWUP = "Seguimiento: {t} y {e}"
+PREP_DESC_EXCLUDE = "Excluir: {motivo} ({cond})"
+PREP_DESC_DUPS = "Excluir duplicados ({cols})"
+PREP_DESC_DROP = "Quitar {cols}"
+PREP_DESC_RENAME = "Renombrar «{col}» → «{nombre}»"
+
+# Revisión de calidad
+Q_DUP_ROWS = "Filas duplicadas"
+Q_DUP_ROWS_DETAIL = "{n} filas son copia exacta de otra anterior."
+Q_DUP_ID = "Identificador repetido en «{col}»"
+Q_DUP_ID_DETAIL = "{n} filas comparten identificador pero tienen datos distintos: revísalas a mano."
+Q_EMPTY = "«{col}» está vacía"
+Q_EMPTY_DETAIL = "No tiene ningún valor."
+Q_DATE = "«{col}» parece una fecha"
+Q_DATE_DETAIL = "Formato detectado: {fmt}."
+Q_DATE_AMBIGUOUS = "No se distingue si es día/mes o mes/día (ningún valor pasa de 12): confirma el formato."
+Q_NUMTEXT = "«{col}» tiene números guardados como texto"
+Q_NUMTEXT_DETAIL = "Al convertirla, {n} valores no se podrían leer."
+Q_NUMTEXT_LIMITS = "{n} valores llevan «<» o «>» (límite de detección)."
+Q_CATS = "«{col}»: la misma categoría escrita de varias formas"
+Q_CATS_DETAIL = "Por ejemplo {ej} (mayúsculas, espacios o tildes)."
+Q_MISSING_CODE = "«{col}»: ¿{code} significa «perdido»?"
+Q_MISSING_CODE_DETAIL = "{n} filas valen {code}, muy lejos del resto de valores."
+Q_LIMITS = "«{col}»: valores fuera de los límites del diccionario"
+Q_LIMITS_DETAIL = "{n} valores fuera de los límites plausibles."
+Q_UNITS = "«{col}»: parece haber unidades mezcladas"
+Q_UNITS_DETAIL = "{n} valores son unas {factor} veces mayores que el resto (¿g/L en vez de g/dL?)."
+Q_MOSTLY_EMPTY = "«{col}» está casi vacía"
+Q_MOSTLY_EMPTY_DETAIL = "Le falta el {p} % de los valores."
+Q_CONSTANT = "«{col}» casi no varía"
+Q_CONSTANT_DETAIL = "El {p} % de los valores es «{v}»."
+
+# Diccionario
+DICT_INVALID = "No he podido leer el diccionario. Debe ser un CSV o Excel con una fila por variable."
+DICT_NO_VARIABLE = "El diccionario necesita una columna «variable» con el nombre de cada columna de los datos."
+DICT_BAD_NUMBER = "«{value}» no es un número válido como límite."
+
+# Mis fórmulas
+MYF_INVALID = "El archivo no es una biblioteca de «Mis fórmulas» de StatLab."
+MYF_NEWER = "La biblioteca es de una versión más reciente de StatLab."
+MYF_UNMAPPED = "Indica qué columna corresponde a: {cols}."
+Q_DICT_MISSING = "«{col}»: códigos de perdido del diccionario"
+Q_DICT_MISSING_DETAIL = "{n} filas tienen un código que el diccionario define como perdido ({codes})."
