@@ -47,6 +47,17 @@ def _pipeline(salida: Path) -> list[str]:
     assert final["tamanos"] == CRITERIO["tamanos"], final["tamanos"]
     e.resultados["modelo_final"] = final
     log.append("análisis: ok (109/76/55)")
+    # GMM, jerárquico y comparación (scikit-learn mixture, SciPy hierarchy y optimize en el paquete)
+    from statlab.core import clustering as clu
+    from statlab.core import comparacion as cmp
+
+    X = e.resultados["preprocesado"]["_preparado"].X
+    gmm = clu.algoritmo("gmm").ajustar(X, 3, {"covarianza": "diag", "n_init": 2}, 1)
+    jer = clu.algoritmo("jerarquico").ajustar(X, 3, {"enlace": "ward"}, 0)
+    a = cmp.Solucion("GMM", gmm.labels.tolist(), list(range(len(X))), huella="x")
+    b = cmp.Solucion("Jerárquico", jer.labels.tolist(), list(range(len(X))), huella="x")
+    assert 0 <= cmp.comparar(a, b, B=20)["ari"] <= 1
+    log.append("GMM, jerárquico y comparación: ok")
     files = ex.escribir("todo", mod.exportar(e), salida / "exportes", base="selftest")
     log.append(f"exportes: {len(files)} archivos")
     path = ses.guardar(salida / "sesion.statlab", e, mod.id)

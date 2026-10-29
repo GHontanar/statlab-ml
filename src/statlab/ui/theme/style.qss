@@ -644,3 +644,49 @@ QPlainTextEdit#FormulaEdit, QLabel#FormulaText {
 QScrollArea#FlowScroll, QScrollArea#FlowScroll > QWidget > QWidget {
     background: transparent;
 }
+
+/* --- Pestañas de análisis --------------------------------------------- */
+QFrame#AnalysisTabs {
+    background: ${panel};
+    border-bottom: 1px solid ${border};
+}
+QTabBar#AnalysisTabBar::tab {
+    background: transparent;
+    color: ${text_secondary};
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 9px 14px 7px 14px;
+    margin-right: 2px;
+    font-weight: 500;
+}
+QTabBar#AnalysisTabBar::tab:selected {
+    color: ${text};
+    border-bottom: 2px solid ${accent};
+    font-weight: 600;
+}
+QTabBar#AnalysisTabBar::tab:hover {
+    color: ${text};
+}
+QToolButton#NewAnalysis {
+    background: transparent;
+    color: ${accent};
+    border: none;
+    padding: 6px 8px;
+    font-weight: 600;
+}
+QToolButton#NewAnalysis:hover {
+    color: ${accent_hover};
+}
+QToolButton#NewAnalysis::menu-indicator {
+    image: none;
+}
+QTabBar#AnalysisTabBar::close-button {
+    image: url(statlab:icons/close-${mode}.svg);
+    subcontrol-position: right;
+    margin-left: 4px;
+    padding: 2px;
+    border-radius: 3px;
+}
+QTabBar#AnalysisTabBar::close-button:hover {
+    background: ${gridline};
+}

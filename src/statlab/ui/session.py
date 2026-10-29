@@ -39,6 +39,9 @@ class SessionController(QObject):
     focus_requested = Signal(str)  # llevar la vista a un paso de la barra lateral
     rows_selection_requested = Signal(list)  # seleccionar estas filas en la tabla (desde un gráfico)
     prep_changed = Signal()  # opciones de lectura, receta o diccionario
+    # El usuario ha cambiado la preparación desde este análisis; hay que avisar a los demás.
+    # True: han cambiado los datos (receta, lectura); False: solo diccionario o avisos ignorados.
+    prep_edited = Signal(bool)
 
     def __init__(self, module: AnalysisModule, parent: QObject | None = None):
         super().__init__(parent)
@@ -57,6 +60,8 @@ class SessionController(QObject):
         self._turnos: dict[str, int] = {}
         self._timers: dict[str, QTimer] = {}
         self.preparado: Preparado | None = None  # último resultado de aplicar la receta
+        # Si el análisis forma parte de una sesión con varios, quién guarda la sesión entera
+        self.guardar_proyecto = None
         self.prep_changed.connect(self._mark_dirty)
 
     @property
@@ -116,22 +121,31 @@ class SessionController(QObject):
 
     def save_session(self, path: str | Path) -> Path:
         """Guarda todo en un archivo .statlab. Lanza ErrorUsuario/OSError si no se puede."""
-        guardado = ses.guardar(path, self.estado, self.module.id)
-        self.session_path = guardado
-        self._set_dirty(False)
+        if self.guardar_proyecto is not None:
+            guardado = self.guardar_proyecto(path)
+        else:
+            guardado = ses.guardar(path, self.estado, self.module.id)
+        self.saved_as(guardado)
         self.message.emit(S.SESSION_SAVED.format(name=guardado.name))
         return guardado
 
+    def saved_as(self, path: Path) -> None:
+        self.session_path = path
+        self._set_dirty(False)
+
     def open_session(self, path: str | Path) -> None:
-        """Restaura una sesión sin recalcular nada."""
-        estado = ses.abrir(path, self.module.crear_estado, self.module.id)
+        """Restaura una sesión de un solo análisis sin recalcular nada."""
+        self.restore(ses.abrir(path, self.module.crear_estado, self.module.id), Path(path))
+
+    def restore(self, estado: EstadoSesion, path: Path | None) -> None:
+        """Muestra un estado ya leído de un archivo, sin recalcular nada."""
         for paso in list(self._tareas):
             self.cancel(paso)
         self._restoring = True
         try:
             self.estado = estado
             self._reabiertos.clear()
-            self.session_path = Path(path)
+            self.session_path = path
             self.preparado = estado.preparacion.aplicar() if estado.preparacion else None
             self.dataset_changed.emit()
             for paso in self.flujo.ids:
@@ -158,6 +172,26 @@ class SessionController(QObject):
             prep.opciones, prep.receta = r.opciones, r.receta
             prep.diccionario, prep.ignorados = r.diccionario, r.ignorados
             raise
+        self._rebuild(ds, preparado)
+        self.prep_edited.emit(True)
+
+    def sync_preparation(self) -> None:
+        """Otro análisis de la sesión ha cambiado la preparación (compartida): rehacer esta tabla."""
+        if self.prep is None or self.dataset is None:
+            return
+        try:
+            ds, preparado = _leyendo(lambda: self.prep.dataset(self.dataset))
+        except ErrorUsuario:
+            return
+        self._rebuild(ds, preparado)
+
+    def adopt(self, prep: Preparacion, dataset: Dataset) -> None:
+        """Análisis nuevo dentro de una sesión: misma preparación y una tabla ya hecha."""
+        self.preparado = prep.aplicar()
+        self._set(dataset, prep)
+        self.prep_changed.emit()
+
+    def _rebuild(self, ds: Dataset, preparado: Preparado) -> None:
         for paso in list(self._tareas):
             self.cancel(paso)
         filas_iguales = self.dataset is not None and ds.n_filas == self.dataset.n_filas
@@ -180,11 +214,17 @@ class SessionController(QObject):
             return
         cambio(self.prep.diccionario)
         self.prep_changed.emit()
+        self.prep_edited.emit(False)
 
     def ignore_problem(self, clave: str) -> None:
         if self.prep is not None:
             self.prep.ignorados.add(clave)
             self.prep_changed.emit()
+            self.prep_edited.emit(False)
+
+    def notify_preparation(self) -> None:
+        """La preparación compartida ha cambiado sin afectar a los datos (diccionario, avisos ignorados)."""
+        self.prep_changed.emit()
 
     # --- Columnas -------------------------------------------------------
     def set_role(self, cols: list[str], rol: Rol | None) -> Cambio:

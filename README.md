@@ -1,9 +1,10 @@
 # StatLab
 
 Aplicación de escritorio para análisis estadístico clínico. El primer módulo es
-**clustering k-means**: barrido de k, modelo final, validación por bootstrap
-(silueta, Jaccard por cluster tipo *clusterboot*), perfiles, sensibilidad a la
-imputación, sesiones guardables e informes PDF y Word. Pensada para clínicos:
+**clustering**: k-means, mezclas gaussianas (GMM) y jerárquico, con barrido de k,
+modelo final, validación por bootstrap (silueta, Jaccard por cluster tipo
+*clusterboot*), perfiles, sensibilidad a la imputación, **comparación de
+soluciones** (ARI), preparación de datos, sesiones guardables e informes PDF y Word. Pensada para clínicos:
 interfaz gráfica, sin escribir código y **sin conexión**: los datos nunca salen
 del equipo (no hay telemetría ni comprobación de actualizaciones).
 
@@ -58,14 +59,29 @@ No hace falta instalar Python ni nada más, ni permisos de administrador.
    o **L** (log). Para filas, selecciona sus números y usa la barra ámbar.
 3. **Preprocesado**: valores perdidos y escalado; el resultado se ve al momento.
 4. **Elegir k**: «Calcular barrido de k» y haz clic en el punto del k elegido.
+   En GMM se elige también la forma de los clusters (el gráfico de BIC compara las
+   cuatro); en el jerárquico, el tipo de enlace, y el k se elige cortando el dendrograma.
 5. **Modelo final**: «Ajustar y validar». Cifras clave, PCA (clic o lazo
    seleccionan filas en la tabla), perfiles, silueta, estabilidad, sensibilidad y
    descriptivas.
 6. **Exportar**: informe PDF o Word, figuras, CSV con el cluster de cada paciente,
    JSON y texto de métodos.
 
+**Varios análisis sobre los mismos datos**: «+ Nuevo análisis» abre otra pestaña
+(k-means, GMM o jerárquico) con los mismos datos, roles y filas que el análisis activo;
+la preparación de datos es común a todos. En GMM, la pestaña «Pertenencia» muestra la
+probabilidad de cada paciente y permite seleccionar los de frontera.
+
+**Comparar soluciones**: la pestaña «Comparar soluciones» calcula el índice de Rand
+ajustado (ARI) entre dos soluciones, con su IC y su interpretación, el % de pacientes en el
+mismo grupo, el flujo entre clusters (Sankey: clic en una banda para ver esos pacientes),
+la tabla cruzada y la lista de los que cambian de grupo. También se pueden importar
+soluciones de otra sesión `.statlab` o de un CSV con columnas `id` y `cluster` (por
+ejemplo, de R o SPSS).
+
 «Guardar sesión» guarda todo en un archivo `.statlab` que se vuelve a abrir tal
-cual: el archivo original, la receta, el diccionario y el análisis.
+cual: el archivo original, la receta, el diccionario, todos los análisis y las soluciones
+importadas.
 
 En `ejemplos/` hay datos ficticios para probar: `cohorte_cardiometabolica_prueba.csv`
 (limpio, 4 perfiles) y `registro_sucio_prueba.xlsx` (el mismo con los problemas típicos de
@@ -118,6 +134,7 @@ Gatekeeper en macOS), y el paquete de macOS es solo para Apple Silicon.
 ```
 src/statlab/
   core/        lógica pura, sin Qt: io.py (lectura), dataset.py (roles y filas),
+               clustering.py (k-means, GMM, jerárquico), comparacion.py (ARI),
                prep/ (receta, fórmulas, revisión de calidad, diccionario, Mis fórmulas),
                flow.py (estados de los pasos), estado.py (estado de la sesión),
                fmt.py (números en español), kmeans.py (motor), session.py (.statlab),

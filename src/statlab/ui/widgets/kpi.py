@@ -22,3 +22,8 @@ class KpiCard(QFrame):
         self.note.setVisible(bool(note))
         for w in (self.title, self.value, self.note):
             col.addWidget(w)
+
+    def set_value(self, value: str, note: str = "") -> None:
+        self.value.setText(value)
+        self.note.setText(note)
+        self.note.setVisible(bool(note))

@@ -760,3 +760,73 @@ Q_SHORT = {
     "casi_vacia": "casi vacía",
     "casi_constante": "casi no varía",
 }
+
+# Varios análisis en una sesión
+NEW_ANALYSIS = "+ Nuevo análisis"
+ANALYSIS_SHORT = {"kmeans": "k-means", "gmm": "GMM", "jerarquico": "Jerárquico"}
+ANALYSIS_TAB_K = "{name} · k = {k}"
+CLOSE_ANALYSIS_TITLE = "Cerrar el análisis"
+CLOSE_ANALYSIS_TEXT = "¿Cerrar «{name}»? Se perderán sus resultados (los datos y los demás análisis no cambian)."
+RENAME_ANALYSIS_TITLE = "Nombre del análisis"
+RENAME_ANALYSIS_TEXT = "Nombre de la pestaña (vacío = automático):"
+
+# Comparación de soluciones
+ARI_EXCELLENT = "Acuerdo excelente"
+ARI_GOOD = "Acuerdo bueno"
+ARI_MODERATE = "Acuerdo moderado"
+ARI_POOR = "Acuerdo escaso"
+ARI_CHANCE = "No mejor que el azar"
+CMP_CANNOT_MATCH = (
+    "No se puede saber qué paciente es cuál: una de las soluciones no tiene identificador y no vienen del "
+    "mismo archivo. Marca una columna como identificador (rol I) en los dos análisis."
+)
+CMP_DUP_IDS = "Hay identificadores repetidos en «{name}»: no se puede emparejar a los pacientes."
+CMP_TOO_FEW = "Solo hay {n} pacientes en común: no se puede comparar."
+CMP_CSV_EMPTY = "El archivo no tiene filas con identificador y cluster."
+CMP_NO_SOLUTIONS = "La sesión «{name}» no tiene ningún modelo final que importar."
+CMP_TITLE = "Comparar soluciones"
+CMP_TAB = "Comparar soluciones"
+CMP_SOLUTIONS = "Soluciones"
+CMP_SOLUTION = "Solución {x}"
+CMP_SWAP = "Intercambiar A y B"
+CMP_IMPORTED = "Soluciones importadas"
+CMP_IMPORT_HINT = (
+    "De otra sesión .statlab o de un CSV con las columnas id y cluster (por ejemplo, de R o SPSS). "
+    "Se guardan como copia, con su procedencia."
+)
+CMP_FROM_SESSION = "Sesión…"
+CMP_FROM_CSV = "CSV…"
+CMP_REMOVE = "Quitar la importada"
+CMP_CHOOSE = "¿Qué solución quieres importar?"
+CMP_EMPTY = (
+    "Para comparar hacen falta dos soluciones: ajusta el modelo final en dos análisis (por ejemplo, "
+    "k-means y GMM) o importa una solución."
+)
+CMP_SAME = "Elige dos soluciones distintas."
+KPI_CMP_ARI = "Índice de Rand ajustado (ARI)"
+KPI_CMP_SAME = "Pacientes en el mismo grupo"
+KPI_CMP_SAME_NOTE = "Tras emparejar los clusters de A y B"
+KPI_CMP_DIFF_K = "A y B tienen distinto número de grupos: mira el flujo"
+KPI_CMP_DISC = "Cambian de grupo"
+KPI_CMP_DISC_NOTE = "de {n} pacientes comparados"
+CMP_SELECT_DISC = "Seleccionar los que cambian en la tabla de A"
+CMP_MATCHED_BY_ID = "Pacientes emparejados por su identificador."
+CMP_MATCHED_BY_ROW = "Pacientes emparejados por fila (mismo archivo, sin identificador)."
+CMP_PARTIAL = "Se comparan los {n} pacientes comunes: {a} solo están en A y {b} solo en B."
+CMP_TAB_FLOW = "Flujo"
+CMP_TAB_CROSSTAB = "Tabla cruzada"
+CMP_TAB_DISC = "Discordantes"
+CMP_SANKEY_HINT = (
+    "Cada banda son los pacientes que pasan de un cluster de A a uno de B. Clic: seleccionarlos en la tabla de A."
+)
+CMP_CROSSTAB_HINT = (
+    "Pacientes de cada cluster de A (filas) según su cluster en B (columnas); entre paréntesis, % de la fila. "
+    "En azul, los clusters emparejados."
+)
+CMP_BAND_TIP = "{a} → {b}: {n} pacientes"
+CMP_HEAD_ID = "Identificador"
+CMP_HEAD_PROB = "Probabilidad (GMM)"
+CMP_PROB_NOTE = (
+    "Probabilidad de pertenencia media en GMM: {d} en los que cambian de grupo frente a {c} en el resto. "
+    "Si es más baja, son pacientes de frontera entre dos perfiles."
+)
