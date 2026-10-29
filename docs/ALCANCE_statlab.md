@@ -123,6 +123,41 @@ activa **«Comparar soluciones»**, una herramienta de la sesión, no de un algo
   - del acuerdo: bootstrap de pacientes con sus etiquetas, rápido y por defecto;
   - de estabilidad: reajustando ambos algoritmos, opcional.
 
+**Dentro de una sesión**, cada análisis se muestra en su propia **pestaña**. Todas comparten los
+datos y la receta, y la comparación elige A y B entre ellas.
+
+#### Comparar con análisis de otras sesiones o de fuera de StatLab
+
+Para el ARI, una solución es una lista **paciente → cluster**. Comparar análisis distintos
+exige emparejar a los pacientes:
+
+- **Columna identificador (rol I):** emparejamiento por ID. Es la vía normal. Con IDs duplicados
+  no se compara y se avisa.
+- **Sin ID pero con el mismo archivo** (misma huella, *hash*): emparejamiento por orden de fila.
+- **Sin ID y con archivos distintos:** no se puede comparar, y se explica por qué.
+- **Pacientes que no coinciden del todo:** se compara en la intersección, con el aviso de §5.2.
+  Si la intersección es pequeña, el aviso es más fuerte.
+
+**Importar solución** (F3). En «Comparar soluciones», el botón «Importar solución…» acepta:
+
+- **otra sesión `.statlab`**, eligiendo una de sus soluciones;
+- **un CSV con `id;cluster`**, para comparar con un análisis hecho fuera de StatLab (R, SPSS, un
+  compañero) o con una clasificación clínica ya existente.
+
+La solución importada es una **copia congelada**: solo las etiquetas y su procedencia («importada
+de *cohorte_2025.statlab*, 29/10/2026»). No se actualiza si el original cambia, y el informe
+indica su procedencia.
+
+**Pestañas de sesiones** (más adelante). Varias sesiones abiertas a la vez, cada una en su pestaña
+(como en un navegador); comparar con otra pestaña sería importar su solución sin pasar por un
+archivo. Sirve para más que el ARI (trabajar en dos estudios, copiar una receta), pero cuesta más:
+
+- cálculo en segundo plano por pestaña;
+- aviso de cambios sin guardar por pestaña;
+- memoria;
+- qué hacer al cerrar una pestaña de la que depende una comparación (la comparación conserva una
+  copia congelada, como al importar).
+
 ### 5.3 Análisis de sensibilidad
 
 La solución elegida es la **base**: se fija y nunca se sustituye sola. El programa repite el
@@ -371,13 +406,13 @@ Cada fase termina en una versión publicada, con tests en CI en los tres SO y el
 |---|---|---|---|
 | **F1** | v0.2 | Distribución en el hospital (§10); medir el rendimiento con 5.000 filas | StatLab arranca en un PC del hospital; tiempos medidos y documentados |
 | **F2** | v0.3 | **Preparación de datos**, núcleo (§8.1, pasos 1–5 y 7): receta no destructiva, revisión de calidad, tipos, recodificar, nuevas variables con fechas; **diccionario** (§8.2); **diagrama de flujo de pacientes** (§8.4) | Un Excel «sucio» de referencia (hoja 2, cabecera en la fila 3, unidades mezcladas, categorías incoherentes, fechas dd/mm) queda listo sin escribir código; la receta se reaplica idéntica al reabrir la sesión; una fórmula de «Mis fórmulas» se aplica a otro archivo asignando sus columnas |
-| **F3** | v0.4 | Sesión con varias soluciones (`.statlab` v2 con migración); **jerárquico** y **GMM**; **comparación de soluciones** (§5.2) | Con la cohorte de prueba, k-means y GMM con k=4 dan un ARI ≥ 0,90 y el Sankey enlaza con la tabla; las sesiones v1 se abren |
+| **F3** | v0.4 | Sesión con varias soluciones, cada análisis en su pestaña (`.statlab` v2 con migración); **jerárquico** y **GMM**; **comparación de soluciones** (§5.2), incluida **importar solución** de otra sesión o de un CSV `id;cluster` | Con la cohorte de prueba, k-means y GMM con k=4 dan un ARI ≥ 0,90 y el Sankey enlaza con la tabla; una solución importada de otra sesión y la misma exportada a CSV dan el mismo ARI; las sesiones v1 se abren |
 | **F4** | v0.5 | **Sensibilidad** generalizada (§5.3); k-medoids con Gower | El informe incluye todos los escenarios y la conclusión automática; la robustez por paciente aparece en la tabla |
 | **F5** | v0.6 | Base generalizada (roles, pipeline, pantalla «¿Qué quieres hacer?»); **Tabla 1** y **contrastes**; **datos faltantes a fondo** (§8.3) | La Tabla 1 exportada a Word coincide con R (`tableone`) en un dataset de referencia; MICE combinado coincide con R (`mice`) |
 | **F6** | v0.7 | **Supervisado**: logística penalizada, RF, gradient boosting; validación, calibración, curva de decisión, interpretabilidad | Sin fuga de información (test específico); AUC y calibración coinciden con una referencia en scikit-learn |
 | **F7** | v0.8 | **Supervivencia**: KM, log-rank y Cox; regresión inferencial (§7.3) | HR e IC coinciden con R (`survival`) en un dataset de referencia |
 | **F8** | v0.9 | **Unir archivos** y formato largo/ancho (§8.1, paso 6); **plantillas** (§8.6); **pruebas diagnósticas y escalas de riesgo** (§9) | Una plantilla aplicada a un archivo nuevo da el mismo resultado que el análisis hecho a mano |
-| Más adelante | — | Catálogo de referencia de variables (§8.2), anonimización (§8.5), exportar como script (§8.4), resto de §9 (longitudinal, causal, cuestionarios, diseño, concordancia), §5.1 «Más adelante», §6.3, otros idiomas | — |
+| Más adelante | — | Pestañas de sesiones (§5.2), catálogo de referencia de variables (§8.2), anonimización (§8.5), exportar como script (§8.4), resto de §9 (longitudinal, causal, cuestionarios, diseño, concordancia), §5.1 «Más adelante», §6.3, otros idiomas | — |
 
 Orden pensado para **reutilizar al máximo**:
 - F2 va primero porque todos los módulos parten de una tabla limpia, y la supervivencia necesita
