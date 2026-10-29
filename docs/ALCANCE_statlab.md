@@ -234,7 +234,8 @@ se entra al abrir un archivo y al que se puede volver en cualquier momento.
    Lo detecta el programa y se confirma en una vista previa.
 2. **Revisión automática de calidad:** una lista de problemas, cada uno con su botón «Revisar».
    - **Duplicados**, de filas completas o de ID.
-   - **Valores imposibles o improbables:** rangos fisiológicos por variable, configurables en el diccionario (§8.2).
+   - **Valores imposibles o improbables:** fuera de los límites del diccionario (§8.2), que el
+     catálogo de referencia puede proponer.
    - **Unidades mezcladas:** por ejemplo, Hb en g/dL y g/L en la misma columna, detectada por una distribución bimodal con razón ×10. Se propone convertir, nunca se convierte sin confirmar.
    - **Categorías incoherentes:** «M», «Hombre», «varón », mayúsculas, espacios, tildes.
    - **Números guardados como texto:** «<0,5», «>200», «12,3 mg».
@@ -245,30 +246,63 @@ se entra al abrir un archivo y al que se puede volver en cualquier momento.
 4. **Recodificar:**
    - unir categorías arrastrándolas a un grupo;
    - ordenar categorías ordinales;
-   - categorizar una numérica por cortes, con cortes clínicos predefinidos (p. ej. IMC según la OMS) o por cuantiles;
+   - categorizar una numérica por cortes que define el usuario o por cuantiles (los cortes se
+     pueden guardar en «Mis fórmulas»);
    - invertir ítems.
-5. **Nuevas variables**, con un catálogo guiado de fórmulas clínicas, cada una con su referencia
-   bibliográfica y validada con casos publicados:
-   - IMC y superficie corporal;
-   - filtrado glomerular (CKD-EPI 2021, sin raza);
-   - edad a partir de la fecha de nacimiento;
-   - **tiempo de seguimiento y evento a partir de fechas** (inclusión, evento, último contacto, censura);
-   - escalas sencillas (suma de ítems);
-   - fórmula libre con una calculadora visual, sin escribir código.
+5. **Nuevas variables: los cálculos los define el usuario.** StatLab **no trae fórmulas clínicas**
+   (ni IMC, ni filtrado glomerular, ni escalas); reconocer las variables de entrada de cada fórmula
+   y asignarlas bien sería complicado e innecesario para el objetivo de la app.
+   - **Calculadora visual**, sin escribir código: operaciones, condiciones (`SI`), `MIN`, `MAX`,
+     `LN`, `EXP` y funciones de fecha. Lenguaje limitado: **nunca se ejecuta código**.
+   - **Operaciones de fecha guiadas**, porque son genéricas y no fórmulas clínicas: diferencia
+     entre fechas (edad a partir de la fecha de nacimiento) y **tiempo de seguimiento y evento a
+     partir de fechas** (inclusión, evento, último contacto, censura).
+   - Cada cálculo es un **paso de la receta**: se repite solo al reabrir la sesión o al reaplicar
+     la receta a datos nuevos.
+   - **«Mis fórmulas»:** cualquier cálculo se guarda en una biblioteca personal del equipo
+     (fuera de la sesión) y se reutiliza en otros archivos. Al aplicarlo, el usuario indica una vez
+     qué columna es cada entrada; nada se asigna automáticamente. La biblioteca se puede exportar
+     e importar como archivo para compartirla con el equipo de investigación.
+   - La fórmula es responsabilidad de quien la escribe; el texto de métodos la muestra tal cual.
 6. **Unir archivos por ID**
    - con un informe de emparejamiento: cuántos casan, cuántos están solo en un archivo, IDs duplicados;
    - pasar de **formato largo a ancho** y viceversa, para medidas repetidas.
 7. **Exclusiones con motivo:** cada filtro lleva un motivo («< 18 años», «sin analítica basal») y
    alimenta el **diagrama de flujo de pacientes** (§8.4).
 
-### 8.2 Diccionario de variables
+### 8.2 Diccionario de variables y catálogo de referencia
 
-Para cada variable: etiqueta, unidad, descripción, rango plausible, codificación de las categorías
-y valores que significan «perdido» (p. ej. 999).
+**Diccionario del proyecto** (describe las columnas de este archivo): para cada variable, etiqueta,
+unidad, descripción, límites plausibles, codificación de las categorías y valores que significan
+«perdido» (p. ej. 999).
 
 - Se define una vez y lo usan **todas las tablas, figuras e informes**: el informe dice
   «Hemoglobina (g/dL)», no `hb_gdl`.
 - Se puede **importar y exportar** como CSV o Excel y reutilizar entre proyectos.
+
+**Catálogo de referencia de variables** (lo que StatLab «sabe» de las variables clínicas
+habituales). **Mejora opcional**: sin él, la revisión de calidad funciona igual con los límites que
+el usuario ponga en el diccionario; el catálogo solo ahorra escribirlos.
+
+- **Sugiere, nunca aplica solo:** «la columna `hb_gdl` parece Hemoglobina en g/dL; límites
+  plausibles 3–25». Al aceptar, rellena el diccionario: nombre estándar, unidad y límites.
+- Con eso se activan la detección de **valores fuera de límites** y de **unidades mezcladas**,
+  con propuesta de conversión.
+- Para cada variable: nombre estándar, sinónimos (hb, hgb, hemoglobina), unidad canónica,
+  unidades alternativas con su factor de conversión y límites plausibles.
+- **Núcleo pequeño hecho a mano:** unas 100 variables de analítica básica, constantes vitales y
+  antropometría. Límites amplios y conservadores, revisados por un clínico.
+- **Configurable:** el usuario corrige límites o añade variables en su catálogo personal (igual
+  que «Mis fórmulas»), exportable para compartirlo.
+- **Fuentes estándar** (⚠ Decide Guzmán, tras revisar licencias):
+  - **NPU** (IFCC/IUPAC), terminología europea de laboratorio, descarga gratuita, ~16.000
+    entradas: nombres y unidades. No trae límites plausibles; versión en español por confirmar.
+  - **LOINC**: nombres, sinónimos y unidades, con traducción al español; licencia gratuita con
+    atribución.
+  - **UCUM**: conversiones entre unidades de la misma dimensión (g/dL ↔ g/L). Las conversiones
+    masa ↔ molar dependen del peso molecular y se definen a mano.
+  - **Ningún estándar da límites plausibles.** La base de datos de variación biológica de la EFLM
+    no sirve para esto: da variación intra e interindividual, no nombres, unidades ni límites.
 
 ### 8.3 Datos faltantes a fondo
 
@@ -336,7 +370,7 @@ Cada fase termina en una versión publicada, con tests en CI en los tres SO y el
 | Fase | Versión | Contenido | Criterio de aceptación |
 |---|---|---|---|
 | **F1** | v0.2 | Distribución en el hospital (§10); medir el rendimiento con 5.000 filas | StatLab arranca en un PC del hospital; tiempos medidos y documentados |
-| **F2** | v0.3 | **Preparación de datos**, núcleo (§8.1, pasos 1–5 y 7): receta no destructiva, revisión de calidad, tipos, recodificar, nuevas variables con fechas; **diccionario** (§8.2); **diagrama de flujo de pacientes** (§8.4) | Un Excel «sucio» de referencia (hoja 2, cabecera en la fila 3, unidades mezcladas, categorías incoherentes, fechas dd/mm) queda listo sin escribir código; la receta se reaplica idéntica al reabrir la sesión; CKD-EPI 2021 coincide con los casos publicados |
+| **F2** | v0.3 | **Preparación de datos**, núcleo (§8.1, pasos 1–5 y 7): receta no destructiva, revisión de calidad, tipos, recodificar, nuevas variables con fechas; **diccionario** (§8.2); **diagrama de flujo de pacientes** (§8.4) | Un Excel «sucio» de referencia (hoja 2, cabecera en la fila 3, unidades mezcladas, categorías incoherentes, fechas dd/mm) queda listo sin escribir código; la receta se reaplica idéntica al reabrir la sesión; una fórmula de «Mis fórmulas» se aplica a otro archivo asignando sus columnas. Opcional: catálogo de referencia de variables (§8.2) |
 | **F3** | v0.4 | Sesión con varias soluciones (`.statlab` v2 con migración); **jerárquico** y **GMM**; **comparación de soluciones** (§5.2) | Con la cohorte de prueba, k-means y GMM con k=4 dan un ARI ≥ 0,90 y el Sankey enlaza con la tabla; las sesiones v1 se abren |
 | **F4** | v0.5 | **Sensibilidad** generalizada (§5.3); k-medoids con Gower | El informe incluye todos los escenarios y la conclusión automática; la robustez por paciente aparece en la tabla |
 | **F5** | v0.6 | Base generalizada (roles, pipeline, pantalla «¿Qué quieres hacer?»); **Tabla 1** y **contrastes**; **datos faltantes a fondo** (§8.3) | La Tabla 1 exportada a Word coincide con R (`tableone`) en un dataset de referencia; MICE combinado coincide con R (`mice`) |
@@ -366,6 +400,7 @@ Orden pensado para **reutilizar al máximo**:
 | `shap` | Interpretabilidad | Medio-pesado | ⚠ Decide Guzmán (alternativa: permutación y dependencia parcial) |
 | `hdbscan`, `umap-learn`, clases latentes | Más adelante | Pesado | Más adelante |
 | `factor_analyzer` / `semopy` | Análisis factorial exploratorio y confirmatorio (§9) | Ligero / medio | Más adelante |
+| Datos NPU / LOINC / UCUM (no son librerías) | Nombres, sinónimos y unidades del catálogo de referencia (§8.2) | Un archivo de datos | ⚠ Decide Guzmán (licencias) |
 
 ## 13. Fuera de alcance
 
@@ -384,4 +419,5 @@ colaboración en tiempo real.
 6. ¿El límite de 5.000 filas se mantiene, o se fija por algoritmo tras medir el rendimiento?
 7. ¿La preparación de datos (F2) va antes que los algoritmos no supervisados nuevos (F3), como propone este documento?
 8. El script exportado (§8.4), ¿en R, en Python o en ambos?
-9. ¿Qué fórmulas clínicas entran en el catálogo inicial de nuevas variables (§8.1, paso 5)? Conviene una lista corta validada por especialidad.
+9. Catálogo de referencia de variables (§8.2): ¿se hace en F2 o se deja para más adelante? Si se
+   hace, ¿con qué fuente (NPU o LOINC) y quién revisa los límites plausibles?
