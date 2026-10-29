@@ -502,27 +502,33 @@ MODE_PREPARE = "1 · Preparar datos"
 MODE_ANALYZE = "2 · Analizar"
 PREP_SIDEBAR_TITLE = "Preparar datos"
 PREP_FILE = "Archivo"
-PREP_FILE_SUMMARY = "{name}\n{rows} filas × {cols} columnas leídas. El archivo original no se modifica."
+PREP_FILE_SUMMARY = "{name} · {rows} × {cols}"
+PREP_FILE_SHEET = "Hoja «{sheet}» · cabecera en la fila {row}"
+PREP_ORIGINAL_SAFE = "El archivo original no se modifica."
+PREP_ADJUST = "Ajustar"
+PREP_ADJUST_HIDE = "Ocultar"
 PREP_SHEET = "Hoja"
 PREP_HEADER_ROW = "Cabecera en la fila"
 PREP_TWO_HEADER_ROWS = "Cabecera de dos filas"
 PREP_DROP_TRAILING = "Ignorar totales al final"
 PREP_QUALITY = "Revisión de calidad"
-PREP_QUALITY_OK = "No se ha encontrado ningún problema."
-PREP_QUALITY_COUNT = "{n} · {g} graves"
-PREP_QUALITY_COUNT_1 = "{n} · 1 grave"
-PREP_FIX = "Corregir…"
+PREP_QUALITY_OK = "✓ Sin problemas detectados"
+PREP_QUALITY_SUMMARY = "{n} avisos"
+PREP_QUALITY_SUMMARY_1 = "1 aviso"
+PREP_QUALITY_GRAVES = "{n} importantes"
+PREP_QUALITY_GRAVES_1 = "1 importante"
+PREP_SHOW_ALL = "Mostrar {n} más"
+PREP_FIX = "Corregir"
 PREP_SHOW_ROWS = "Ver {n} filas"
 PREP_IGNORE = "Ignorar"
 PREP_RECIPE = "Receta"
-PREP_RECIPE_COUNT = "{n} pasos"
-PREP_RECIPE_COUNT_1 = "1 paso"
-PREP_RECIPE_EMPTY = (
-    "Aún no hay pasos. Cada cambio que hagas se añade aquí, en orden, y se puede desactivar, "
-    "reordenar o borrar en cualquier momento."
-)
+PREP_RECIPE_EMPTY = "Aún no hay cambios. Cada corrección o paso nuevo se añade aquí."
+PREP_RECIPE_ERRORS = "{n} con error"
+PREP_STEP_ACTIONS = "Acciones del paso"
+PREP_DISABLE = "Desactivar"
+PREP_ENABLE = "Activar"
 PREP_ADD_STEP = "Añadir paso"
-PREP_TOGGLE_STEP = "Activar o desactivar este paso"
+MYF_MENU = "Desde Mis fórmulas…"
 PREP_STEP_OFF = "Desactivado"
 PREP_MOVE_UP = "Subir"
 PREP_MOVE_DOWN = "Bajar"
@@ -532,7 +538,9 @@ PREP_CONTINUE = "Continuar al análisis →"
 PREP_ERROR_TITLE = "No se ha podido aplicar el cambio"
 PREP_PREVIEW = "Vista previa"
 PREP_PREVIEW_CELLS = "{n} celdas cambian"
+PREP_PREVIEW_CELLS_1 = "1 celda cambia"
 PREP_PREVIEW_ROWS = "{n} filas excluidas"
+PREP_PREVIEW_ROWS_1 = "1 fila excluida"
 PREP_PREVIEW_NEWCOLS = "columna nueva {cols}"
 PREP_PREVIEW_NOTHING = "Este paso no cambia nada en los datos actuales."
 PREP_BEFORE = "antes"
@@ -658,7 +666,7 @@ REPORT_PREP_HEAD = ("Paso", "Descripción")
 # Diccionario (interfaz)
 DICT_TITLE = "Diccionario de variables"
 DICT_EDIT = "Editar diccionario…"
-DICT_SUMMARY = "{n} de {total} variables descritas."
+DICT_SUMMARY = "{n} de {total} variables descritas"
 DICT_INTRO = (
     "Etiqueta y unidad se usan en tablas e informes. Los límites plausibles y los códigos de perdido "
     "alimentan la revisión de calidad. Categorías: 1=Hombre|2=Mujer. Varios códigos: 999|-9."
@@ -674,7 +682,6 @@ DICT_IMPORT_UNKNOWN = "{n} variables del archivo no están en la tabla y no se h
 
 # Mis fórmulas (interfaz)
 MYF_TITLE = "Mis fórmulas"
-MYF_BUTTON = "Mis fórmulas…"
 MYF_EMPTY = (
     "Aún no hay fórmulas guardadas. Al crear una variable con la calculadora, marca «Guardar también en "
     "Mis fórmulas» para reutilizarla en otros archivos."
@@ -688,3 +695,17 @@ MYF_FILTER = "Mis fórmulas de StatLab (*.json)"
 MYF_IMPORTED = "{n} fórmulas nuevas y {m} sustituidas."
 ROW_EXCLUDED_BY_RECIPE = "Excluida por la receta: {motivo}"
 READ_OTHER_SHEET = "Los datos se han leído de la hoja «{sheet}» (las anteriores no tienen una tabla)."
+
+Q_SHORT = {
+    "duplicados": "Filas duplicadas",
+    "id_duplicado": "identificador repetido",
+    "vacia": "columna vacía",
+    "fecha_texto": "fecha como texto",
+    "numero_texto": "números como texto",
+    "categorias": "valores escritos distinto",
+    "codigo_perdido": "¿código de perdido?",
+    "fuera_limites": "valores fuera de límites",
+    "unidades": "unidades mezcladas",
+    "casi_vacia": "casi vacía",
+    "casi_constante": "casi no varía",
+}

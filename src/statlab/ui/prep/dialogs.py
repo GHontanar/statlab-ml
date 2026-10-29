@@ -14,7 +14,6 @@ import pandas as pd
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QAbstractItemView,
-    QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -26,6 +25,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPlainTextEdit,
+    QSizePolicy,
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
@@ -39,6 +39,7 @@ from statlab.core.errors import ErrorUsuario
 from statlab.core.prep import formula
 from statlab.core.prep import receta as rc
 from statlab.core.prep.receta import Paso, Receta
+from statlab.ui.widgets.toggle import Toggle
 
 PREVIEW_ROWS = 8
 
@@ -273,7 +274,7 @@ class PasoDialog(QDialog):
         for campo in FORMULARIOS[tipo]:
             w = self._crear(campo)
             self.widgets[campo.clave] = w
-            label = QLabel(campo.etiqueta)
+            label = QLabel("" if campo.tipo == "casilla" else campo.etiqueta)
             label.setObjectName("FieldLabel")
             contenedor = w
             if campo.ayuda:
@@ -383,7 +384,8 @@ class PasoDialog(QDialog):
             w.valueChanged.connect(self._cambio)
             return w
         if campo.tipo == "casilla":
-            w = QCheckBox()
+            w = Toggle(campo.etiqueta)
+            w.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             w.setChecked(bool(v))
             return w
         w = QLineEdit()
@@ -470,7 +472,7 @@ class PasoDialog(QDialog):
     @property
     def guardar_en_mis_formulas(self) -> bool:
         w = self.widgets.get("guardar")
-        return isinstance(w, QCheckBox) and w.isChecked()
+        return isinstance(w, Toggle) and w.isChecked()
 
     # --- Vista previa ----------------------------------------------------
     def _cambio(self, *_args) -> None:
@@ -494,9 +496,9 @@ class PasoDialog(QDialog):
         ok.setEnabled(True)
         partes = []
         if inf.celdas:
-            partes.append(S.PREP_PREVIEW_CELLS.format(n=inf.celdas))
+            partes.append(S.PREP_PREVIEW_CELLS_1 if inf.celdas == 1 else S.PREP_PREVIEW_CELLS.format(n=inf.celdas))
         if inf.filas:
-            partes.append(S.PREP_PREVIEW_ROWS.format(n=inf.filas))
+            partes.append(S.PREP_PREVIEW_ROWS_1 if inf.filas == 1 else S.PREP_PREVIEW_ROWS.format(n=inf.filas))
         if inf.columnas_nuevas:
             partes.append(S.PREP_PREVIEW_NEWCOLS.format(cols=", ".join(f"«{c}»" for c in inf.columnas_nuevas)))
         if not partes:

@@ -573,45 +573,58 @@ QPushButton#ModeButton:checked {
     color: ${text};
     font-weight: 600;
 }
-QFrame#PrepSection {
-    background: ${panel};
-    border: 1px solid ${border};
-    border-radius: ${radius_card}px;
+QFrame#ListRow {
+    border-top: 1px solid ${border};
+    border-radius: 0px;
 }
-QFrame#ProblemCard {
+QFrame#ListRow:hover {
     background: ${bg};
-    border: 1px solid ${border};
-    border-left: 3px solid ${text_muted};
-    border-radius: 6px;
 }
-QFrame#ProblemCard[level="grave"] {
-    border-left: 3px solid ${na_text};
+QLabel#SeverityDot {
+    border-radius: 4px;
+    background: ${text_muted};
 }
-QFrame#ProblemCard[level="aviso"] {
-    border-left: 3px solid ${stale};
+QLabel#SeverityDot[level="grave"] {
+    background: ${na_text};
 }
-QLabel#ProblemTitle {
+QLabel#SeverityDot[level="aviso"] {
+    background: ${stale};
+}
+QLabel#RowText {
     font-size: 13px;
-    font-weight: 600;
+    color: ${text};
 }
-QFrame#RecipeRow {
-    border-bottom: 1px solid ${border};
-}
-QFrame#RecipeRow[state="off"] QLabel#RecipeText {
+QLabel#RowStatus, QLabel#RowNumber {
+    font-size: 12px;
     color: ${text_muted};
-    text-decoration: line-through;
 }
-QFrame#RecipeRow[state="error"] QLabel#RecipeText {
+QLabel#RowError {
+    font-size: 12px;
     color: ${na_text};
 }
-QToolButton#RowTool {
+QFrame#ListRow[state="off"] QLabel#RowText {
+    color: ${text_muted};
+}
+QFrame#ListRow[state="error"] QLabel#RowText {
+    color: ${na_text};
+}
+QToolButton#RowMenu {
+    background: transparent;
     color: ${text_secondary};
     border: none;
-    padding: 0px 2px;
-    font-size: 13px;
+    border-radius: 4px;
+    padding: 0px 4px;
+    font-size: 15px;
+    font-weight: 700;
 }
-QToolButton#RowTool:hover {
-    color: ${accent};
+QToolButton#RowMenu:hover {
+    background: ${gridline};
+    color: ${text};
+}
+QLabel#OkNote {
+    color: ${done};
+    font-size: 12px;
+    font-weight: 500;
 }
 QLineEdit, QPlainTextEdit {
     background: ${panel};
