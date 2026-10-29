@@ -2,12 +2,14 @@
 # bibliotecas de Qt como archivos separados, como pide la LGPL).
 #   uv run pyinstaller packaging/statlab.spec --noconfirm
 import sys
+import tomllib
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_data_files
 
 ROOT = Path(SPECPATH).parent  # noqa: F821 - SPECPATH lo define PyInstaller
 PKG = ROOT / "packaging"
+VERSION = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
 
 datas = []
 datas += collect_data_files("statlab")  # tema (QSS, Inter, iconos) y datos de ejemplo
@@ -59,7 +61,7 @@ if sys.platform == "darwin":
         bundle_identifier="org.statlab.desktop",
         info_plist={
             "CFBundleDisplayName": "StatLab",
-            "CFBundleShortVersionString": "0.1.0",
+            "CFBundleShortVersionString": VERSION,
             "NSHighResolutionCapable": True,
             "LSApplicationCategoryType": "public.app-category.medical",
         },

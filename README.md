@@ -101,9 +101,9 @@ El workflow **Build** (`.github/workflows/build.yml`) genera los tres paquetes
 ejecutable con `--self-test`, que recorre el análisis con los datos de ejemplo y
 exporta todos los formatos. Para publicar una versión, cualquiera de estas vías:
 
-- **Subir la versión** en `pyproject.toml` y `src/statlab/__init__.py` y hacer push a la
-  rama principal: si esa versión aún no tiene etiqueta, el workflow la crea y publica
-  la Release con los tres paquetes.
+- **Subir la versión** en `pyproject.toml` y `src/statlab/__init__.py` en una rama de
+  trabajo e integrarla en `main` con una pull request: al llegar a `main` una versión que
+  aún no tiene etiqueta, el workflow la crea y publica la Release con los tres paquetes.
 - **Etiqueta**: `git tag v0.2.0 && git push origin v0.2.0`.
 - **A mano**: pestaña *Actions* → *Build* → *Run workflow*, con `version` = `v0.2.0`
   (vacío = solo compilar; los paquetes quedan como artefactos del run).
