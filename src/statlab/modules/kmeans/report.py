@@ -16,8 +16,21 @@ from statlab.core.report import figures as fig
 from statlab.core.report.document import Figura, Parrafo, SaltoPagina, Tabla, Titulo
 from statlab.modules.base import Exportacion
 
+PRIMERA = {"kmeans": ("01_codo", S.FIG_ELBOW), "gmm": ("01_bic", S.FIG_BIC),
+           "jerarquico": ("01_dendrograma", S.FIG_DENDRO)}
+
+
+def _figuras(estado: EstadoSesion) -> list:
+    """Figuras del informe para el algoritmo de este análisis."""
+    alg = estado.resultados["elegir_k"].get("algoritmo", "kmeans")
+    nombre, pie = PRIMERA[alg]
+    lista = [(nombre, lambda e, k: fig.criterio(e.resultados["elegir_k"], k), pie), *FIGURAS]
+    if estado.resultados["modelo_final"].get("probabilidad"):
+        lista.append(("08_pertenencia", lambda e, k: fig.pertenencia(e.resultados["modelo_final"]), S.FIG_MEMBERSHIP))
+    return lista
+
+
 FIGURAS = [  # nombre de archivo, función, pie
-    ("01_codo", lambda e, k: fig.elbow(e.resultados["elegir_k"], k), S.FIG_ELBOW),
     ("02_silueta_por_k", lambda e, k: fig.silhouette_by_k(e.resultados["elegir_k"], k), S.FIG_SIL_K),
     ("03_pca", lambda e, k: fig.pca(e.resultados["modelo_final"]), S.FIG_PCA),
     ("04_mapa_de_calor", lambda e, k: fig.heatmap(e.resultados["modelo_final"], etiquetas(e)[0]), S.FIG_HEATMAP),
@@ -68,15 +81,22 @@ def _parametros(estado: EstadoSesion) -> list[list[str]]:
 
 def _tabla_indices(sweep: dict) -> Tabla:
     boot = sweep.get("boot")
+    crit = sweep.get("criterio", {"id": "inercia", "valores": sweep.get("inercia")})
+    dec = {"inercia": 1, "bic": 0, "altura": 2}[crit["id"]]
     filas = []
     for i, k in enumerate(sweep["ks"]):
         ic = f"{fmt.num(boot['ic_inf'][i], 3)} – {fmt.num(boot['ic_sup'][i], 3)}" if boot else "—"
-        filas.append([str(k), fmt.num(sweep["inercia"][i], 1), fmt.num(sweep["silueta"][i], 3), ic,
+        filas.append([str(k), fmt.num(crit["valores"][i], dec), fmt.num(sweep["silueta"][i], 3), ic,
                       fmt.num(sweep["ch"][i], 1), fmt.num(sweep["db"][i], 3), str(sweep["tam_min"][i])])
     m = sweep["mejor"]
+    alg = sweep.get("algoritmo", "kmeans")
+    propio = {"kmeans": S.BEST_K_ELBOW, "gmm": S.BEST_K_BIC, "jerarquico": S.BEST_K_HEIGHT}[alg]
     pie = (f"{S.INDEX_TABLE_NOTE} " + " · ".join([S.BEST_K_SIL.format(k=m["silueta"]), S.BEST_K_CH.format(k=m["ch"]),
-                                                   S.BEST_K_DB.format(k=m["db"]), S.BEST_K_ELBOW.format(k=m["codo"])]))
-    return Tabla(list(S.INDEX_TABLE_HEAD), filas, pie=pie, izquierda=set())
+                                                   S.BEST_K_DB.format(k=m["db"]),
+                                                   propio.format(k=m.get("criterio", m.get("codo")))]))
+    head = list(S.INDEX_TABLE_HEAD)
+    head[1] = S.CRITERION_HEAD[crit["id"]]
+    return Tabla(head, filas, pie=pie, izquierda=set())
 
 
 def _kpis(r: dict) -> Tabla:
@@ -142,13 +162,17 @@ def construir(estado: EstadoSesion) -> Exportacion:
         raise ErrorUsuario(S.FINAL_REQUIRED)
     ds = estado.dataset
     k = r["k"]
-    figuras = {nombre: crear(estado, k) for nombre, crear, _ in FIGURAS}
-    pies = {nombre: pie for nombre, _, pie in FIGURAS}
+    lista = _figuras(estado)
+    figuras = {nombre: crear(estado, k) for nombre, crear, _ in lista}
+    pies = {nombre: pie for nombre, _, pie in lista}
+    primera = lista[0][0]
     png = {nombre: fig.png_bytes(f, dpi=200) for nombre, f in figuras.items()}
     ahora = datetime.now()
 
+    alg = r.get("algoritmo", "kmeans")
+    titulo = S.REPORT_TITLES[alg]
     bloques = [
-        Titulo(S.REPORT_TITLE, 0),
+        Titulo(titulo, 0),
         Parrafo(S.REPORT_COVER.format(fuente=ds.fuente, n=ds.n_filas, cols=len(ds.columnas), n_model=r["n"])),
         Parrafo(S.REPORT_DATE.format(fecha=ex.fecha_larga(ahora), version=__version__)),
         Parrafo(S.REPORT_PRIVACY, nota=True),
@@ -165,14 +189,15 @@ def construir(estado: EstadoSesion) -> Exportacion:
         Tabla(list(S.REPORT_PARAM_HEAD), _parametros(estado), izquierda={0, 1}),
         Titulo(S.REPORT_SWEEP, 1),
         _tabla_indices(estado.resultados["elegir_k"]),
-        Figura(png["01_codo"], pies["01_codo"]),
+        Figura(png[primera], pies[primera]),
         Figura(png["02_silueta_por_k"], pies["02_silueta_por_k"]),
         SaltoPagina(),
         Titulo(S.REPORT_FINAL, 1),
         _kpis(r),
         Titulo(S.REPORT_FIGURES, 1),
         *[Figura(png[n], pies[n]) for n in ("03_pca", "04_mapa_de_calor", "05_silueta_por_observacion",
-                                            "06_jaccard", "07_histograma_bootstrap")],
+                                            "06_jaccard", "07_histograma_bootstrap", "08_pertenencia")
+          if n in png],
         SaltoPagina(),
         Titulo(S.REPORT_TABLES, 1),
         Titulo(S.REPORT_PROFILES, 2),
@@ -199,7 +224,7 @@ def construir(estado: EstadoSesion) -> Exportacion:
         "version": __version__,
         "fecha": ahora.isoformat(timespec="seconds"),
         "fuente": ds.fuente,
-        "modulo": "kmeans",
+        "modulo": alg,
         "roles": {c: rol.value for c, rol in ds.roles.items()},
         "log": sorted(ds.log),
         "filas_excluidas": sorted(ds.excluidas),
@@ -211,5 +236,5 @@ def construir(estado: EstadoSesion) -> Exportacion:
         "metodos_imputacion": km.IMPUTATION_METHODS,
     }
     metodos = f"# {S.REPORT_METHODS}\n\n{r['metodos']}\n"
-    return Exportacion(titulo=S.REPORT_TITLE, bloques=bloques, figuras=figuras, tabla=tabla, json=datos,
+    return Exportacion(titulo=titulo, bloques=bloques, figuras=figuras, tabla=tabla, json=datos,
                        metodos=metodos)

@@ -42,6 +42,11 @@ RESULTS_EMPTY = "Los resultados aparecerán aquí a medida que completes los pas
 
 # Módulo k-means
 KMEANS_NAME = "Clustering k-means"
+KMEANS_DESC = "Grupos compactos alrededor de un centro. Rápido y el más usado."
+GMM_NAME = "Mezclas gaussianas (GMM)"
+GMM_DESC = "Grupos con forma y tamaño propios; da la probabilidad de pertenencia de cada paciente."
+HIER_NAME = "Clustering jerárquico"
+HIER_DESC = "Árbol de agrupamientos (dendrograma): se elige dónde cortarlo."
 STEP_PREPROCESS = "Preprocesado"
 STEP_CHOOSE_K = "Elegir k"
 STEP_FINAL_MODEL = "Modelo final"
@@ -192,6 +197,18 @@ HELP_RANGE = (
     "Cuántos grupos (clusters) se comparan. Se ajusta un modelo para cada k del rango y se comparan "
     "con varios índices. El máximo es 8."
 )
+SWEEP_COV = "Forma de los clusters (covarianza)"
+HELP_COV = (
+    "Completa: cada cluster puede tener su propio tamaño, forma y orientación (lo más flexible). "
+    "Compartida: todos con la misma forma. Diagonal: sin correlaciones entre variables dentro del "
+    "cluster. Esférica: redondos, como k-means. El gráfico de BIC compara las cuatro."
+)
+SWEEP_LINK = "Tipo de enlace"
+HELP_LINK = (
+    "Cómo se mide la distancia entre dos grupos al unirlos. Ward: une los grupos que menos aumentan "
+    "la variabilidad interna (grupos compactos, el más usado). Promedio: distancia media entre sus "
+    "pacientes. Completo: la mayor distancia entre sus pacientes."
+)
 HELP_NINIT = (
     "k-means empieza desde puntos al azar; se repite este número de veces y se queda con la mejor "
     "solución. 20 es suficiente casi siempre."
@@ -208,6 +225,17 @@ BEST_K_SIL = "Silueta: k = {k}"
 BEST_K_CH = "Calinski-Harabasz: k = {k}"
 BEST_K_DB = "Davies-Bouldin: k = {k}"
 BEST_K_ELBOW = "Codo ≈ {k}"
+BEST_K_BIC = "BIC: k = {k}"
+BEST_K_HEIGHT = "Mayor salto del árbol: k = {k}"
+CHART_BIC = "BIC por k (menor es mejor)"
+CHART_DENDRO = "Dendrograma (clic para cortar)"
+AXIS_BIC = "BIC"
+AXIS_HEIGHT = "Altura de fusión"
+TIP_BIC = "k = {k} · BIC {v}"
+CUT_LABEL = "corte: k = {k}"
+COV_SHORT = {"full": "Completa", "tied": "Compartida", "diag": "Diagonal", "spherical": "Esférica"}
+CRITERION_HEAD = {"inercia": "Inercia", "bic": "BIC", "altura": "Altura de fusión"}
+BIC_BEST_COV = "Menor BIC de todos los tipos: covarianza {cov}, k = {k}."
 CHART_ELBOW = "Método del codo"
 CHART_SIL = "Silueta media por k"
 AXIS_K = "Número de clusters (k)"
@@ -263,6 +291,24 @@ TAB_SILHOUETTE = "Silueta"
 TAB_STABILITY = "Estabilidad"
 TAB_SENSITIVITY = "Sensibilidad a la imputación"
 TAB_DESCRIPTIVE = "Variables descriptivas"
+TAB_MEMBERSHIP = "Pertenencia"
+MEMBERSHIP_TITLE = "Probabilidad de pertenencia al cluster asignado"
+MEMBERSHIP_NOTE = (
+    "{n} pacientes tienen una probabilidad menor que {u}: están en la frontera entre dos perfiles "
+    "(media de todos: {m})."
+)
+MEMBERSHIP_SELECT = "Seleccionar los {n} de frontera en la tabla"
+MEMBERSHIP_SELECT_1 = "Seleccionar el paciente de frontera en la tabla"
+MEMBERSHIP_NOTE_1 = (
+    "1 paciente tiene una probabilidad menor que {u}: está en la frontera entre dos perfiles (media de todos: {m})."
+)
+AXIS_PATIENTS = "Pacientes"
+FINAL_K_HINTS = {
+    "kmeans": "También puedes elegir k haciendo clic en un punto del codo o de la silueta.",
+    "gmm": "También puedes elegir k haciendo clic en un punto del BIC o de la silueta.",
+    "jerarquico": "También puedes elegir k haciendo clic en el dendrograma (a la altura del corte) o en la silueta.",
+}
+AXIS_PROB = "Probabilidad máxima"
 PCA_TITLE = "Proyección en componentes principales"
 PCA_HINT = "Clic en un punto o arrastra un lazo para seleccionar esas filas en la tabla."
 HEATMAP_TITLE = "Perfiles de los clusters (medias en z)"
@@ -327,6 +373,8 @@ UNSAVED_CANCEL = "Cancelar"
 
 # Informe
 REPORT_TITLE = "Informe de clustering k-means"
+REPORT_TITLES = {"kmeans": "Informe de clustering k-means", "gmm": "Informe de mezclas gaussianas (GMM)",
+                 "jerarquico": "Informe de clustering jerárquico"}
 REPORT_COVER = "Archivo de datos: {fuente} · {n} filas × {cols} columnas · {n_model} filas en el modelo"
 REPORT_DATE = "Fecha: {fecha} · StatLab {version}"
 REPORT_PRIVACY = (
@@ -364,6 +412,9 @@ NO = "no"
 YES_B = "sí ({b} remuestras por k)"
 MISSING_KNN_LONG = "KNN, {k} vecinos"
 FIG_ELBOW = "Método del codo: inercia por número de clusters."
+FIG_BIC = "Criterio de información bayesiano (BIC) por número de componentes; en gris, otros tipos de covarianza."
+FIG_DENDRO = "Dendrograma (últimas fusiones); línea discontinua: corte en el número de grupos elegido."
+FIG_MEMBERSHIP = "Probabilidad de pertenencia al cluster asignado; en ámbar, pacientes de frontera."
 FIG_SIL_K = "Silueta media por k (barras: IC95 % bootstrap)."
 FIG_PCA = "Proyección en las dos primeras componentes principales; rombos: centroides."
 FIG_HEATMAP = "Perfiles de los clusters: medias estandarizadas (z) de cada variable del modelo."

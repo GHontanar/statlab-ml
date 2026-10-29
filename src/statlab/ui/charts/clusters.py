@@ -180,3 +180,20 @@ class BootHistogram(ThemedPlot):
         if hi - lo < 0.05:
             mid = (lo + hi) / 2
             self.setXRange(mid - 0.025, mid + 0.025, padding=0)
+
+
+class ProbHistogram(ThemedPlot):
+    """GMM: distribución de la probabilidad de pertenencia al cluster asignado, con el umbral de frontera."""
+
+    def __init__(self, p: dict, parent=None):
+        super().__init__(S.AXIS_PROB, S.AXIS_PATIENTS, parent)
+        t = tokens()
+        valores = np.asarray(p["p_max"], dtype=float)
+        counts, edges = np.histogram(valores, bins=20, range=(0.0, 1.0))
+        colores = [t["stale"] if e < p["umbral"] else t["accent"] for e in edges[:-1]]
+        brushes = [pg.mkBrush(c + "B0") for c in colores]
+        self.addItem(pg.BarGraphItem(x0=edges[:-1], x1=edges[1:], height=counts, brushes=brushes,
+                                     pen=pg.mkPen(t["panel"], width=0.5)))
+        self.addItem(pg.InfiniteLine(pos=p["umbral"], angle=90,
+                                     pen=pg.mkPen(t["text"], width=1.4, style=Qt.PenStyle.DashLine)))
+        self.setXRange(0, 1, padding=0.02)

@@ -67,3 +67,75 @@ def silhouette_chart(r: dict) -> KChart:
         chart.addItem(bars)
         bars.setZValue(-1)
     return chart
+
+
+def bic_chart(r: dict) -> KChart:
+    """BIC del tipo de covarianza elegido (clicable) y, en gris, los otros tipos como referencia."""
+    cov = r["opciones"].get("covarianza", "full")
+
+    def tip(x, y, data):
+        return S.TIP_BIC.format(k=int(data), v=fmt.num(y, 0))
+
+    chart = KChart(r["ks"], r["criterio"]["valores"], S.AXIS_BIC, tip)
+    t = tokens()
+    otros = {c: v for c, v in r.get("bic_covarianzas", {}).items() if c != cov}
+    if otros:
+        legend = chart.addLegend(offset=(-8, 8), labelTextColor=t["text_secondary"], labelTextSize="10px")
+        legend.addItem(chart.listDataItems()[0], S.COV_SHORT[cov])
+        for i, (c, valores) in enumerate(otros.items()):
+            y = np.array([np.nan if v is None else v for v in valores], dtype=float)
+            item = pg.PlotDataItem(r["ks"], y, pen=pg.mkPen(t["text_muted"], width=1.2,
+                                                           style=[pg.QtCore.Qt.PenStyle.DashLine,
+                                                                  pg.QtCore.Qt.PenStyle.DotLine,
+                                                                  pg.QtCore.Qt.PenStyle.DashDotLine][i % 3]))
+            item.setZValue(-2)
+            chart.addItem(item)
+            legend.addItem(item, S.COV_SHORT[c])
+    return chart
+
+
+class DendrogramChart(ThemedPlot):
+    """Dendrograma (últimas fusiones) con la línea de corte del k elegido. Clic = cortar ahí."""
+
+    k_clicked = Signal(int)
+
+    def __init__(self, r: dict, parent=None):
+        super().__init__("", S.AXIS_HEIGHT, parent)
+        t = tokens()
+        d = r["dendrograma"]
+        self.cortes = {int(k): v for k, v in d["cortes"].items() if int(k) in r["ks"]}
+        pen = pg.mkPen(t["text_secondary"], width=1.2)
+        for xs, ys in zip(d["icoord"], d["dcoord"], strict=True):
+            self.addItem(pg.PlotDataItem(xs, ys, pen=pen))
+        self.getPlotItem().getAxis("bottom").setTicks([[]])
+        pen_corte = pg.mkPen(t["accent"], width=2, style=pg.QtCore.Qt.PenStyle.DashLine)
+        self.line = pg.InfiniteLine(angle=0, pen=pen_corte, label="",
+                                    labelOpts={"position": 0.04, "color": t["accent"], "anchors": [(0, 1), (0, 1)]})
+        self.addItem(self.line)
+        self.line.hide()
+        self.scene().sigMouseClicked.connect(self._click)
+        self.ks = list(r["ks"])
+
+    def set_selected(self, k: int | None) -> None:
+        if k is None or k not in self.cortes:
+            self.line.hide()
+            return
+        self.line.setValue(self.cortes[k])
+        self.line.label.setFormat(S.CUT_LABEL.format(k=k))
+        self.line.show()
+
+    def _click(self, ev) -> None:
+        y = self.getPlotItem().vb.mapSceneToView(ev.scenePos()).y()
+        if self.cortes:
+            k = min(self.cortes, key=lambda k: abs(self.cortes[k] - y))
+            self.k_clicked.emit(int(k))
+
+
+def criterion_chart(r: dict):
+    """Primer gráfico del barrido según el algoritmo: codo, BIC o dendrograma."""
+    alg = r.get("algoritmo", "kmeans")
+    if alg == "gmm":
+        return bic_chart(r)
+    if alg == "jerarquico" and r.get("dendrograma"):
+        return DendrogramChart(r)
+    return elbow_chart({**r, "inercia": r.get("inercia") or r["criterio"]["valores"]})

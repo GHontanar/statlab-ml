@@ -101,6 +101,51 @@ def elbow(sweep: dict, k: int | None) -> Figure:
     return fig
 
 
+def criterio(sweep: dict, k: int | None) -> Figure:
+    """Primer gráfico del barrido según el algoritmo: codo (k-means), BIC (GMM) o dendrograma."""
+    alg = sweep.get("algoritmo", "kmeans")
+    if alg == "gmm":
+        return _bic(sweep, k)
+    if alg == "jerarquico" and sweep.get("dendrograma"):
+        return _dendrograma(sweep, k)
+    return elbow({**sweep, "inercia": sweep.get("inercia") or sweep["criterio"]["valores"]}, k)
+
+
+def _bic(sweep: dict, k: int | None) -> Figure:
+    with _style():
+        fig = _figure()
+        ax = _axes(fig, S.CHART_BIC, S.AXIS_K, S.AXIS_BIC)
+        cov = sweep["opciones"].get("covarianza", "full")
+        estilos = iter(["--", ":", "-."])
+        for c, valores in sweep.get("bic_covarianzas", {}).items():
+            if c != cov:
+                y = [np.nan if v is None else v for v in valores]
+                ax.plot(sweep["ks"], y, next(estilos), color=MUTED, linewidth=1.1, label=S.COV_SHORT[c])
+        y = sweep["criterio"]["valores"]
+        ax.plot(sweep["ks"], y, "-o", color=ACCENT, markersize=5, linewidth=1.8, label=S.COV_SHORT[cov])
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        ax.legend(frameon=False, fontsize=8)
+        if k in sweep["ks"]:
+            _ring(ax, k, y[sweep["ks"].index(k)])
+    return fig
+
+
+def _dendrograma(sweep: dict, k: int | None) -> Figure:
+    with _style():
+        fig = _figure()
+        ax = _axes(fig, S.CHART_DENDRO.split(" (")[0], "", S.AXIS_HEIGHT)
+        d = sweep["dendrograma"]
+        for xs, ys in zip(d["icoord"], d["dcoord"], strict=True):
+            ax.plot(xs, ys, color=TEXT, linewidth=0.9)
+        ax.set_xticks([])
+        ax.grid(False, axis="x")
+        if k is not None and str(k) in d["cortes"]:
+            ax.axhline(d["cortes"][str(k)], color=ACCENT, linestyle="--", linewidth=1.4)
+            ax.text(ax.get_xlim()[0], d["cortes"][str(k)], f" {S.CUT_LABEL.format(k=k)}", color=ACCENT,
+                    va="bottom", fontsize=8)
+    return fig
+
+
 def silhouette_by_k(sweep: dict, k: int | None) -> Figure:
     with _style():
         fig = _figure()
@@ -261,6 +306,21 @@ def fmt_n(n: int) -> str:
 
 
 # --- Salida ------------------------------------------------------------------
+def pertenencia(r: dict) -> Figure:
+    """GMM: probabilidad de pertenencia al cluster asignado; en ámbar, los de frontera."""
+    with _style():
+        fig = _figure()
+        ax = _axes(fig, S.MEMBERSHIP_TITLE, S.AXIS_PROB, S.AXIS_PATIENTS)
+        p = r["probabilidad"]
+        counts, edges = np.histogram(np.asarray(p["p_max"], dtype=float), bins=20, range=(0, 1))
+        colores = ["#c98a00" if e < p["umbral"] else ACCENT for e in edges[:-1]]
+        ax.bar(edges[:-1], counts, width=np.diff(edges), align="edge", color=colores, alpha=0.8,
+               edgecolor="white", linewidth=0.5)
+        ax.axvline(p["umbral"], color=TEXT, linestyle="--", linewidth=1.2)
+        ax.set_xlim(0, 1)
+    return fig
+
+
 def png_bytes(fig: Figure, dpi: int = 300) -> bytes:
     buf = io.BytesIO()
     with _style():
