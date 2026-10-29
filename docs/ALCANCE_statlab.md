@@ -234,8 +234,8 @@ se entra al abrir un archivo y al que se puede volver en cualquier momento.
    Lo detecta el programa y se confirma en una vista previa.
 2. **Revisión automática de calidad:** una lista de problemas, cada uno con su botón «Revisar».
    - **Duplicados**, de filas completas o de ID.
-   - **Valores imposibles o improbables:** fuera de los límites del diccionario (§8.2), que el
-     catálogo de referencia puede proponer.
+   - **Valores imposibles o improbables:** fuera de los límites que el usuario pone en el
+     diccionario (§8.2).
    - **Unidades mezcladas:** por ejemplo, Hb en g/dL y g/L en la misma columna, detectada por una distribución bimodal con razón ×10. Se propone convertir, nunca se convierte sin confirmar.
    - **Categorías incoherentes:** «M», «Hombre», «varón », mayúsculas, espacios, tildes.
    - **Números guardados como texto:** «<0,5», «>200», «12,3 mg».
@@ -281,7 +281,7 @@ unidad, descripción, límites plausibles, codificación de las categorías y va
 - Se puede **importar y exportar** como CSV o Excel y reutilizar entre proyectos.
 
 **Catálogo de referencia de variables** (lo que StatLab «sabe» de las variables clínicas
-habituales). **Mejora opcional**: sin él, la revisión de calidad funciona igual con los límites que
+habituales). **Decidido: se deja para más adelante**, después de F8. Sin él, la revisión de calidad funciona igual con los límites que
 el usuario ponga en el diccionario; el catálogo solo ahorra escribirlos.
 
 - **Sugiere, nunca aplica solo:** «la columna `hb_gdl` parece Hemoglobina en g/dL; límites
@@ -370,14 +370,14 @@ Cada fase termina en una versión publicada, con tests en CI en los tres SO y el
 | Fase | Versión | Contenido | Criterio de aceptación |
 |---|---|---|---|
 | **F1** | v0.2 | Distribución en el hospital (§10); medir el rendimiento con 5.000 filas | StatLab arranca en un PC del hospital; tiempos medidos y documentados |
-| **F2** | v0.3 | **Preparación de datos**, núcleo (§8.1, pasos 1–5 y 7): receta no destructiva, revisión de calidad, tipos, recodificar, nuevas variables con fechas; **diccionario** (§8.2); **diagrama de flujo de pacientes** (§8.4) | Un Excel «sucio» de referencia (hoja 2, cabecera en la fila 3, unidades mezcladas, categorías incoherentes, fechas dd/mm) queda listo sin escribir código; la receta se reaplica idéntica al reabrir la sesión; una fórmula de «Mis fórmulas» se aplica a otro archivo asignando sus columnas. Opcional: catálogo de referencia de variables (§8.2) |
+| **F2** | v0.3 | **Preparación de datos**, núcleo (§8.1, pasos 1–5 y 7): receta no destructiva, revisión de calidad, tipos, recodificar, nuevas variables con fechas; **diccionario** (§8.2); **diagrama de flujo de pacientes** (§8.4) | Un Excel «sucio» de referencia (hoja 2, cabecera en la fila 3, unidades mezcladas, categorías incoherentes, fechas dd/mm) queda listo sin escribir código; la receta se reaplica idéntica al reabrir la sesión; una fórmula de «Mis fórmulas» se aplica a otro archivo asignando sus columnas |
 | **F3** | v0.4 | Sesión con varias soluciones (`.statlab` v2 con migración); **jerárquico** y **GMM**; **comparación de soluciones** (§5.2) | Con la cohorte de prueba, k-means y GMM con k=4 dan un ARI ≥ 0,90 y el Sankey enlaza con la tabla; las sesiones v1 se abren |
 | **F4** | v0.5 | **Sensibilidad** generalizada (§5.3); k-medoids con Gower | El informe incluye todos los escenarios y la conclusión automática; la robustez por paciente aparece en la tabla |
 | **F5** | v0.6 | Base generalizada (roles, pipeline, pantalla «¿Qué quieres hacer?»); **Tabla 1** y **contrastes**; **datos faltantes a fondo** (§8.3) | La Tabla 1 exportada a Word coincide con R (`tableone`) en un dataset de referencia; MICE combinado coincide con R (`mice`) |
 | **F6** | v0.7 | **Supervisado**: logística penalizada, RF, gradient boosting; validación, calibración, curva de decisión, interpretabilidad | Sin fuga de información (test específico); AUC y calibración coinciden con una referencia en scikit-learn |
 | **F7** | v0.8 | **Supervivencia**: KM, log-rank y Cox; regresión inferencial (§7.3) | HR e IC coinciden con R (`survival`) en un dataset de referencia |
 | **F8** | v0.9 | **Unir archivos** y formato largo/ancho (§8.1, paso 6); **plantillas** (§8.6); **pruebas diagnósticas y escalas de riesgo** (§9) | Una plantilla aplicada a un archivo nuevo da el mismo resultado que el análisis hecho a mano |
-| Más adelante | — | Anonimización (§8.5), exportar como script (§8.4), resto de §9 (longitudinal, causal, cuestionarios, diseño, concordancia), §5.1 «Más adelante», §6.3, otros idiomas | — |
+| Más adelante | — | Catálogo de referencia de variables (§8.2), anonimización (§8.5), exportar como script (§8.4), resto de §9 (longitudinal, causal, cuestionarios, diseño, concordancia), §5.1 «Más adelante», §6.3, otros idiomas | — |
 
 Orden pensado para **reutilizar al máximo**:
 - F2 va primero porque todos los módulos parten de una tabla limpia, y la supervivencia necesita
@@ -400,7 +400,7 @@ Orden pensado para **reutilizar al máximo**:
 | `shap` | Interpretabilidad | Medio-pesado | ⚠ Decide Guzmán (alternativa: permutación y dependencia parcial) |
 | `hdbscan`, `umap-learn`, clases latentes | Más adelante | Pesado | Más adelante |
 | `factor_analyzer` / `semopy` | Análisis factorial exploratorio y confirmatorio (§9) | Ligero / medio | Más adelante |
-| Datos NPU / LOINC / UCUM (no son librerías) | Nombres, sinónimos y unidades del catálogo de referencia (§8.2) | Un archivo de datos | ⚠ Decide Guzmán (licencias) |
+| Datos NPU / LOINC / UCUM (no son librerías) | Nombres, sinónimos y unidades del catálogo de referencia (§8.2) | Un archivo de datos | Más adelante (licencias por revisar) |
 
 ## 13. Fuera de alcance
 
@@ -419,5 +419,5 @@ colaboración en tiempo real.
 6. ¿El límite de 5.000 filas se mantiene, o se fija por algoritmo tras medir el rendimiento?
 7. ¿La preparación de datos (F2) va antes que los algoritmos no supervisados nuevos (F3), como propone este documento?
 8. El script exportado (§8.4), ¿en R, en Python o en ambos?
-9. Catálogo de referencia de variables (§8.2): ¿se hace en F2 o se deja para más adelante? Si se
-   hace, ¿con qué fuente (NPU o LOINC) y quién revisa los límites plausibles?
+9. Catálogo de referencia de variables (§8.2): **decidido, más adelante.** Cuando se retome:
+   ¿con qué fuente (NPU o LOINC) y quién revisa los límites plausibles?
