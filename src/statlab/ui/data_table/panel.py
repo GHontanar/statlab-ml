@@ -176,6 +176,7 @@ class DataPanel(QFrame):
             shortcut.activated.connect(slot)
 
         session.dataset_changed.connect(self._on_dataset)
+        session.prep_changed.connect(self._update_labels)
         session.roles_changed.connect(self._on_roles)
         session.rows_changed.connect(self._on_rows)
         session.message.connect(self.show_message)
@@ -192,6 +193,7 @@ class DataPanel(QFrame):
         if old is not None:
             old.deleteLater()
         self.table.selectionModel().selectionChanged.connect(self._update_bars)
+        self._update_labels()
         self.table.fit_columns()
         self._results_key = None
         self._build_highlight_bar(0)
@@ -200,6 +202,18 @@ class DataPanel(QFrame):
         self.na_label.setText(S.DATA_NA.format(n=na))
         self.na_label.setVisible(na > 0)
         self._update_bars()
+
+    def _update_labels(self) -> None:
+        """Tooltip de la cabecera con la etiqueta y la descripción del diccionario."""
+        prep = self.session.prep
+        if self.model is None or prep is None:
+            return
+        out = {}
+        for c in self.session.dataset.columnas:
+            e = prep.diccionario.get(c)
+            if e and not e.vacia:
+                out[c] = "\n".join(t for t in (prep.diccionario.etiqueta(c), e.descripcion) if t)
+        self.model.etiquetas = out
 
     # --- Resultados del modelo final ------------------------------------
     def _sync_results(self) -> None:

@@ -109,3 +109,9 @@ def test_lognormal_no_es_mezcla_de_unidades():
     rng = np.random.default_rng(0)
     ferritina = pd.Series(np.exp(rng.normal(4, 1.0, 300)))
     assert q.unidades_mezcladas(ferritina) is None
+
+
+def test_sin_hoja_elegida_usa_la_primera_con_datos():
+    lect = sio.leer("registro.xlsx", excel_sucio())
+    assert lect.opciones.hoja == "Datos" and len(lect.df) == 60
+    assert "Datos" in lect.avisos[0]

@@ -17,16 +17,23 @@ CRITERIO = {"tamanos": [109, 76, 55], "silueta_2": 0.557}
 
 
 def _pipeline(salida: Path) -> list[str]:
-    from statlab.core import io as sio
     from statlab.core import session as ses
-    from statlab.core.dataset import Dataset, Rol
+    from statlab.core.dataset import Rol
+    from statlab.core.prep.preparacion import de_ejemplo
+    from statlab.core.prep.receta import Paso
     from statlab.core.report import exports as ex
     from statlab.modules.kmeans.module import KMeansModule, ajustar, barrer, preprocesar
 
     log = []
     mod = KMeansModule()
     e = mod.crear_estado()
-    e.dataset = Dataset(sio.read_example(), fuente=sio.EXAMPLE_NAME)
+    # Preparación: una variable calculada (no entra en el modelo, así que no cambia el criterio)
+    e.preparacion = de_ejemplo()
+    e.preparacion.receta.añadir(Paso("calcular", {"destino": "hb_vcm", "formula": "SI(vcm > 0; hb / vcm)"}))
+    e.preparacion.diccionario.entrada("hb").etiqueta = "Hemoglobina"
+    e.dataset, preparado = e.preparacion.dataset()
+    assert not preparado.errores and "hb_vcm" in e.dataset.columnas
+    log.append("preparación: ok")
     e.dataset.asignar_rol(["hb", "vcm", "plaquetas", "neutrofilos", "hbf", "ferritina"], Rol.MODELO)
     e.dataset.alternar_log(["ferritina"])
     e.dataset.asignar_rol(["edad", "sexo"], Rol.DESCRIPTIVA)

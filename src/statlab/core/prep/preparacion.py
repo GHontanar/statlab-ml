@@ -24,6 +24,7 @@ class Preparacion:
     opciones: sio.OpcionesLectura = field(default_factory=sio.OpcionesLectura)
     receta: Receta = field(default_factory=Receta)
     diccionario: Diccionario = field(default_factory=Diccionario)
+    ignorados: set[str] = field(default_factory=set)  # problemas de calidad descartados («codigo:columna»)
     _lectura: sio.Lectura | None = field(default=None, repr=False, compare=False)
     _clave: dict | None = field(default=None, repr=False, compare=False)
 
@@ -82,6 +83,7 @@ class Preparacion:
             "opciones": self.opciones.to_dict(),
             "receta": self.receta.to_dict(),
             "diccionario": self.diccionario.to_dict(),
+            "ignorados": sorted(self.ignorados),
         }
 
     @classmethod
@@ -92,8 +94,42 @@ class Preparacion:
             opciones=sio.OpcionesLectura.from_dict(d.get("opciones")),
             receta=Receta.from_dict(d.get("receta")),
             diccionario=Diccionario.from_dict(d.get("diccionario")),
+            ignorados=set(d.get("ignorados", [])),
         )
 
 
 def de_ejemplo() -> Preparacion:
     return Preparacion.desde_archivo(sio.EXAMPLE_NAME, sio.example_bytes())
+
+
+@dataclass
+class FlujoPacientes:
+    """Diagrama de flujo de pacientes (tipo STROBE)."""
+
+    n_total: int
+    exclusiones: list[tuple[str, int]]  # (motivo, n) en el orden en que se aplican
+    n_final: int
+
+
+def diagrama_flujo(ds: Dataset, receta: Receta | None = None) -> FlujoPacientes:
+    """Exclusiones de la receta (en el orden de sus pasos) y, después, las hechas a mano
+    en la tabla. Cada fila cuenta solo en la primera exclusión que la afecta."""
+    from statlab import strings_es as S
+
+    cuenta: dict[str, int] = {}
+    for motivo in ds.excluidas_receta.values():
+        cuenta[motivo] = cuenta.get(motivo, 0) + 1
+    orden = [str(p.params.get("motivo") or S.PREP_DUPLICATE_REASON) for p in (receta.pasos if receta else [])
+             if p.activo and p.tipo in ("excluir", "duplicados")]
+    orden = [m for m in dict.fromkeys(orden) if m in cuenta] + [m for m in cuenta if m not in orden]
+    exclusiones = [(m, cuenta[m]) for m in orden]
+    ya = set(ds.excluidas_receta)
+    if ds.solo_filas is not None:
+        fuera = set(range(ds.n_filas)) - set(ds.solo_filas) - ya
+        if fuera:
+            exclusiones.append((S.FLOW_OUTSIDE_SELECTION, len(fuera)))
+            ya |= fuera
+    a_mano = set(ds.excluidas) - ya
+    if a_mano:
+        exclusiones.append((S.FLOW_MANUAL, len(a_mano)))
+    return FlujoPacientes(ds.n_filas, exclusiones, len(ds.filas_activas()))

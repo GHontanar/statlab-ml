@@ -86,14 +86,14 @@ def revisar(df: pd.DataFrame, diccionario: Diccionario | None = None, id_col: st
 
     dup = df.astype("string").duplicated(keep="first")
     if dup.any():
-        filas = list(np.flatnonzero(dup.to_numpy()))
+        filas = _filas(dup)
         out.append(Problema("duplicados", GRAVE, S.Q_DUP_ROWS, S.Q_DUP_ROWS_DETAIL.format(n=len(filas)),
                             n=len(filas), filas=filas, propuesta=rc.Paso("duplicados", {})))
     if id_col and id_col in df.columns:
         ids = df[id_col].astype("string")
         dup_id = ids.duplicated(keep=False) & ids.notna() & ~df.astype("string").duplicated(keep=False)
         if dup_id.any():
-            filas = list(np.flatnonzero(dup_id.to_numpy()))
+            filas = _filas(dup_id)
             out.append(Problema("id_duplicado", GRAVE, S.Q_DUP_ID.format(col=id_col),
                                 S.Q_DUP_ID_DETAIL.format(n=len(filas)), columna=id_col, n=len(filas), filas=filas))
 
@@ -118,7 +118,7 @@ def _revisar_columna(df, col, s, present, n, dic) -> list[Problema]:
         if pd.api.types.is_numeric_dtype(s):
             mask |= s.isin([float(v.replace(",", ".")) for v in entrada.perdidos if _es_num(v)])
         if mask.any():
-            filas = list(np.flatnonzero(mask.to_numpy()))
+            filas = _filas(mask)
             out.append(Problema("codigo_perdido", AVISO, S.Q_DICT_MISSING.format(col=col),
                                 S.Q_DICT_MISSING_DETAIL.format(n=len(filas), codes=", ".join(entrada.perdidos)),
                                 columna=col, n=len(filas), filas=filas,
@@ -135,7 +135,7 @@ def _revisar_columna(df, col, s, present, n, dic) -> list[Problema]:
         elif p_num >= 0.8:
             num, fallidos = rc.texto_a_numero(s)
             limites = int(present.astype("string").str.strip().str.match(r"^([<>]=?|≤|≥)").sum())
-            detalle = S.Q_NUMTEXT_DETAIL.format(n=fallidos)
+            detalle = S.Q_NUMTEXT_DETAIL.format(n=fallidos) if fallidos else S.Q_NUMTEXT_DETAIL_OK
             if limites:
                 detalle += " " + S.Q_NUMTEXT_LIMITS.format(n=limites)
             out.append(Problema("numero_texto", AVISO, S.Q_NUMTEXT.format(col=col), detalle, columna=col,
@@ -153,7 +153,7 @@ def _revisar_columna(df, col, s, present, n, dic) -> list[Problema]:
             if entrada.maximo is not None:
                 fuera |= s > entrada.maximo
             if fuera.any():
-                filas = list(np.flatnonzero(fuera.to_numpy()))
+                filas = _filas(fuera)
                 cond = _condicion_limites(col, entrada.minimo, entrada.maximo)
                 out.append(Problema("fuera_limites", GRAVE, S.Q_LIMITS.format(col=col),
                                     S.Q_LIMITS_DETAIL.format(n=len(filas)), columna=col, n=len(filas), filas=filas,
@@ -161,8 +161,8 @@ def _revisar_columna(df, col, s, present, n, dic) -> list[Problema]:
         mezcla = unidades_mezcladas(s)
         if mezcla:
             factor, mask = mezcla
-            filas = list(np.flatnonzero(mask.to_numpy()))
-            umbral = float(np.sqrt(s[mask].min() * s[~mask & s.notna()].max()))
+            filas = _filas(mask)
+            umbral = float(f"{np.sqrt(s[mask].min() * s[~mask & s.notna()].max()):.2g}")  # entre los dos grupos
             cond = f"[{col}] > {_num_txt(umbral)}"
             out.append(Problema("unidades", GRAVE, S.Q_UNITS.format(col=col),
                                 S.Q_UNITS_DETAIL.format(n=len(filas), factor=_num_txt(1 / factor)),
@@ -170,6 +170,12 @@ def _revisar_columna(df, col, s, present, n, dic) -> list[Problema]:
                                 propuesta=rc.Paso("unidades", {"columna": col, "factor": factor, "condicion": cond})))
     out += _vacia_constante(col, s, present, n)
     return out
+
+
+def _filas(mask: pd.Series) -> list[int]:
+    """Filas afectadas, por su etiqueta en la tabla (la revisión puede recibir solo las
+    filas no excluidas, así que no se usan posiciones)."""
+    return [int(i) for i in mask.index[mask.fillna(False).to_numpy(dtype=bool)]]
 
 
 def _es_num(v: str) -> bool:
@@ -233,7 +239,7 @@ def _codigos_perdido(col: str, s: pd.Series) -> list[Problema]:
         if codigo == -1 and resto_min >= 0:
             lejos = True
         if lejos:
-            filas = list(np.flatnonzero((s == codigo).to_numpy()))
+            filas = _filas(s == codigo)
             out.append(Problema("codigo_perdido", AVISO, S.Q_MISSING_CODE.format(col=col, code=codigo),
                                 S.Q_MISSING_CODE_DETAIL.format(n=cuenta, code=codigo), columna=col, n=cuenta,
                                 filas=filas, propuesta=rc.Paso("perdidos", {"columnas": [col], "valores": [codigo]})))

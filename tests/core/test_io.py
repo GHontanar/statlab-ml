@@ -31,3 +31,10 @@ def test_tsv_and_excel(tmp_path):
     pd.DataFrame({"x": [1.5, 2.5], "y": ["a", "b"]}).to_excel(path, index=False)
     df = sio.read_path(path)
     assert df["x"].tolist() == [1.5, 2.5]
+
+
+def test_limites_de_deteccion_no_se_pierden_en_silencio():
+    raw = b"a;pcr\n1;1,2\n2;<0,5\n3;3,4\n"
+    df = sio.read_table("t.csv", raw)
+    assert df["pcr"].dtype.kind != "f"  # se queda como texto: la revisión de calidad lo propone
+    assert df["pcr"].tolist()[1] == "<0,5"

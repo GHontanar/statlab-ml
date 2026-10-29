@@ -37,6 +37,22 @@ No hace falta instalar Python ni nada más, ni permisos de administrador.
 ### Cómo se usa
 
 1. **Datos**: «Abrir datos…» (CSV, TSV o Excel) o «Probar con datos de ejemplo».
+   Al abrir un archivo se entra en **1 · Preparar datos** (selector de la cabecera):
+   - **Archivo**: en Excel, la hoja y la fila de la cabecera (se detectan solas, también
+     cabeceras de dos filas y filas de totales al final).
+   - **Revisión de calidad**: duplicados, números guardados como texto («<0,5»), fechas,
+     la misma categoría escrita de varias formas, códigos como 999, unidades mezcladas…
+     Cada aviso propone una corrección que se ve antes de aplicarla; nada se cambia solo.
+   - **Receta**: cada cambio es un paso que se puede desactivar, reordenar, editar o borrar.
+     El archivo original nunca se modifica. «Añadir paso» incluye la calculadora de nuevas
+     variables (fórmulas como en Excel: `peso / (talla/100)^2`), tiempo entre fechas,
+     tiempo de seguimiento y evento, categorizar, recodificar y excluir filas con su motivo.
+   - **Mis fórmulas**: guarda tus cálculos para reutilizarlos en otros archivos.
+   - **Diccionario**: etiqueta, unidad, límites plausibles y códigos de perdido de cada
+     variable (importable y exportable en Excel o CSV). Las etiquetas salen en el informe.
+   - **Diagrama de flujo de pacientes**: se construye con las exclusiones y va al informe.
+
+   Después, **2 · Analizar**:
 2. **Variables y filas**: en la tabla, selecciona columnas (clic, arrastre,
    Mayús/Ctrl) y pulsa **M** (modelo), **D** (descriptiva), **I** (identificador)
    o **L** (log). Para filas, selecciona sus números y usa la barra ámbar.
@@ -49,7 +65,11 @@ No hace falta instalar Python ni nada más, ni permisos de administrador.
    JSON y texto de métodos.
 
 «Guardar sesión» guarda todo en un archivo `.statlab` que se vuelve a abrir tal
-cual. **Ese archivo, el CSV y el JSON contienen los datos de los pacientes:
+cual: el archivo original, la receta, el diccionario y el análisis.
+
+En `ejemplos/` hay datos ficticios para probar: `cohorte_cardiometabolica_prueba.csv`
+(limpio, 4 perfiles) y `registro_sucio_prueba.xlsx` (el mismo con los problemas típicos de
+un Excel clínico, para practicar la preparación). **Ese archivo, el CSV y el JSON contienen los datos de los pacientes:
 guárdalos en un lugar seguro.**
 
 ## Desarrollo
@@ -98,18 +118,21 @@ Gatekeeper en macOS), y el paquete de macOS es solo para Apple Silicon.
 ```
 src/statlab/
   core/        lógica pura, sin Qt: io.py (lectura), dataset.py (roles y filas),
+               prep/ (receta, fórmulas, revisión de calidad, diccionario, Mis fórmulas),
                flow.py (estados de los pasos), estado.py (estado de la sesión),
                fmt.py (números en español), kmeans.py (motor), session.py (.statlab),
                report/ (figuras matplotlib, PDF, Word, CSV/JSON/métodos)
   modules/     contrato AnalysisModule (base.py) y módulo kmeans/
-  ui/          ventana, tabla de datos, barra lateral, tema (tokens, QSS, Inter, iconos)
+  ui/          ventana, tabla de datos, barra lateral, prep/ (modo «Preparar datos»),
+               tema (tokens, QSS, Inter, iconos)
   workers.py   cálculos en segundo plano (QThreadPool) con progreso y cancelación
   selftest.py  autocomprobación del paquete compilado
   strings_es.py  textos de la interfaz
   data/        datos de ejemplo integrados
 packaging/     PyInstaller (statlab.spec), iconos, acceso directo de Linux, licencias
 tests/         core/ (pytest) y ui/ (pytest-qt)
-docs/          documento de traspaso y capturas de cada hito
+docs/          documento de traspaso, alcance (ALCANCE_statlab.md) y capturas de cada hito
+ejemplos/      datos de prueba ficticios y sus generadores
 prototipo/     versión Streamlit anterior, solo como referencia
 ```
 

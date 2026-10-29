@@ -152,8 +152,26 @@ def _nombres(grid: pd.DataFrame, fila: int, filas: int) -> list[str]:
 
 def _leer_excel(raw: bytes, opciones: OpcionesLectura) -> Lectura:
     hojas = hojas_excel(raw)
-    hoja = opciones.hoja if opciones.hoja in hojas else hojas[0]
-    opciones.hoja = hoja
+    if opciones.hoja in hojas:
+        return _leer_hoja(raw, opciones, hojas)
+    # Sin hoja elegida: la primera que tenga una tabla (la primera suele ser de instrucciones)
+    error: ErrorUsuario | None = None
+    for hoja in hojas:
+        intento = OpcionesLectura(**{**asdict(opciones), "hoja": hoja})
+        try:
+            lectura = _leer_hoja(raw, intento, hojas)
+        except ErrorUsuario as e:
+            error = error or e
+            continue
+        if lectura.df.shape[1] >= 2 and not lectura.df.empty:
+            if hoja != hojas[0]:
+                lectura.avisos.insert(0, S.READ_OTHER_SHEET.format(sheet=hoja))
+            return lectura
+    raise error or ErrorUsuario(S.READ_TOO_SMALL)
+
+
+def _leer_hoja(raw: bytes, opciones: OpcionesLectura, hojas: list[str]) -> Lectura:
+    hoja = opciones.hoja
     grid = pd.read_excel(io.BytesIO(raw), sheet_name=hoja, header=None, dtype=object)
     grid = grid.dropna(how="all").dropna(axis=1, how="all")
     original = grid.index.to_numpy()  # fila real del archivo (0-based), para informar y para elegirla a mano
@@ -187,7 +205,7 @@ def _leer_excel(raw: bytes, opciones: OpcionesLectura) -> Lectura:
             else:
                 break
         if quitadas:
-            avisos.append(S.READ_TRAILING.format(n=quitadas))
+            avisos.append(S.READ_TRAILING_1 if quitadas == 1 else S.READ_TRAILING.format(n=quitadas))
     datos = datos.dropna(how="all").reset_index(drop=True).infer_objects()
     for c in datos.columns:  # columnas mixtas (número y texto) quedan como texto para revisarlas
         if datos[c].dtype == object:
@@ -211,8 +229,12 @@ def leer_path(path: str | Path, opciones: OpcionesLectura | None = None) -> Lect
     return leer(path.name, path.read_bytes(), opciones)
 
 
-def coerce_decimal_commas(df: pd.DataFrame, threshold: float = 0.9) -> pd.DataFrame:
-    """Convierte a numéricas las columnas de texto con coma decimal ("3,2")."""
+def coerce_decimal_commas(df: pd.DataFrame, threshold: float = 1.0) -> pd.DataFrame:
+    """Convierte a numéricas las columnas de texto con coma decimal ("3,2").
+
+    Solo si todos los valores son números: una columna con «<0,5» o «12 mg» se deja
+    como texto para que la revisión de calidad lo proponga y avise de lo que no se
+    puede leer (nada se convierte en perdido sin decirlo)."""
     out = df.copy()
     for col in out.columns:
         s = out[col]

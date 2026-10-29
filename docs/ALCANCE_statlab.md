@@ -452,7 +452,7 @@ colaboración en tiempo real.
 4. ¿Se puede aplicar un modelo a datos nuevos, y con qué limitaciones? (§3)
 5. Dependencias de la §12, una por una.
 6. ¿El límite de 5.000 filas se mantiene, o se fija por algoritmo tras medir el rendimiento?
-7. ¿La preparación de datos (F2) va antes que los algoritmos no supervisados nuevos (F3), como propone este documento?
+7. ¿La preparación de datos (F2) va antes que los algoritmos no supervisados nuevos (F3)? **Decidido: sí** (F2 en curso).
 8. El script exportado (§8.4), ¿en R, en Python o en ambos?
 9. Catálogo de referencia de variables (§8.2): **decidido, más adelante.** Cuando se retome:
    ¿con qué fuente (NPU o LOINC) y quién revisa los límites plausibles?

@@ -58,7 +58,8 @@ def test_json_and_methods(tmp_path, exportacion):
 def test_figures_png_svg(tmp_path, exportacion):
     files = ex.escribir("figuras", exportacion, tmp_path / "figs")
     names = sorted(p.name for p in files)
-    assert len(names) == 14 and "03_pca.png" in names and "03_pca.svg" in names
+    assert len(names) == 16 and "03_pca.png" in names and "03_pca.svg" in names
+    assert "00_flujo_pacientes.png" in names  # hay filas excluidas a mano: se añade el diagrama de flujo
     png = (tmp_path / "figs" / "03_pca.png").read_bytes()
     assert png[:8] == b"\x89PNG\r\n\x1a\n"
     from PIL import Image  # matplotlib depende de Pillow
@@ -81,7 +82,7 @@ def test_pdf_and_docx(tmp_path, exportacion):
                                     "Perfiles, variables", "Sensibilidad a la imputación", "Texto de métodos",
                                     "Versiones del software")]
     assert order == sorted(order)
-    assert len([n for n in zipfile.ZipFile(docx).namelist() if n.startswith("word/media/")]) == 7
+    assert len([n for n in zipfile.ZipFile(docx).namelist() if n.startswith("word/media/")]) == 8
 
 
 def test_everything_in_a_folder(tmp_path, exportacion):
@@ -89,3 +90,32 @@ def test_everything_in_a_folder(tmp_path, exportacion):
     names = {p.name for p in files}
     assert {"ejemplo_datos_con_clusters.csv", "ejemplo_resultados.json", "ejemplo_metodos.md",
             "ejemplo_informe.pdf", "ejemplo_informe.docx"} <= names
+
+
+def test_el_informe_usa_el_diccionario_y_la_receta(tmp_path):
+    from statlab.core.prep.preparacion import de_ejemplo
+    from statlab.core.prep.receta import Paso
+
+    mod = KMeansModule()
+    e = mod.crear_estado()
+    prep = de_ejemplo()
+    prep.receta.añadir(Paso("excluir", {"condicion": "edad < 2", "motivo": "Menores de 2 años"}))
+    hb = prep.diccionario.entrada("hb")
+    hb.etiqueta, hb.unidad = "Hemoglobina", "g/dL"
+    prep.diccionario.entrada("sexo").categorias = {"F": "Mujer", "M": "Hombre"}
+    e.preparacion = prep
+    e.dataset, _ = prep.dataset()
+    e.dataset.asignar_rol(MODEL, Rol.MODELO)
+    e.dataset.asignar_rol(["sexo"], Rol.DESCRIPTIVA)
+    e.resultados["preprocesado"] = preprocesar(e)
+    e.params("elegir_k").update(bootstrap=False)
+    e.resultados["elegir_k"] = barrer(e, lambda f: None, lambda: False)
+    e.params("modelo_final").update(k=3, B=10)
+    e.resultados["modelo_final"] = ajustar(e, lambda f: None, lambda: False)
+    exp = mod.exportar(e)
+    assert "00_flujo_pacientes" in exp.figuras
+    docx = ex.escribir("docx", exp, tmp_path / "informe")[0]
+    xml = zipfile.ZipFile(docx).read("word/document.xml").decode("utf-8")
+    for texto in ("Hemoglobina (g/dL)", "Mujer", "Preparación de los datos", "Excluir: Menores de 2 años"):
+        assert texto in xml, texto
+    assert exp.json["preparacion"]["receta"]["pasos"][0]["params"]["motivo"] == "Menores de 2 años"

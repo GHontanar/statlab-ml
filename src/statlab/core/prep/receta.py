@@ -148,6 +148,10 @@ def texto_a_fecha(s: pd.Series, formato: str) -> tuple[pd.Series, int]:
     return f, int((txt.notna() & f.isna()).sum())
 
 
+def is_numeric_col(s: pd.Series) -> bool:
+    return pd.api.types.is_numeric_dtype(s) and not pd.api.types.is_bool_dtype(s)
+
+
 def _cambiadas(antes: pd.Series, despues: pd.Series) -> int:
     a, d = antes.astype("string"), despues.astype("string")
     distintos = (a != d).fillna(True) & ~(a.isna() & d.isna())
@@ -188,8 +192,7 @@ def _paso_tipo(ctx: _Ctx, p: dict[str, Any], inf: InformePaso) -> None:
             nuevo = nuevo.astype("category")
     else:
         raise ErrorUsuario(S.PREP_BAD_TYPE.format(tipo=tipo))
-    inf.celdas = _cambiadas(s, nuevo) if tipo in (NUMERICA, FECHA) else 0
-    ctx.df[col] = nuevo
+    ctx.df[col] = nuevo  # cambiar el tipo no cuenta como cambiar celdas; solo se avisa de lo ilegible
 
 
 def _paso_perdidos(ctx: _Ctx, p: dict[str, Any], inf: InformePaso) -> None:

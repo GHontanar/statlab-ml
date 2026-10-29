@@ -410,6 +410,7 @@ EXPORT_WRITE_ERROR = (
 READ_HEADER_ROW = "La cabecera está en la fila {row}: se han ignorado las filas de encima."
 READ_TWO_HEADERS = "La cabecera ocupa dos filas (celdas combinadas): se han unido los nombres."
 READ_TRAILING = "Se han ignorado {n} filas al final (totales o notas)."
+READ_TRAILING_1 = "Se ha ignorado 1 fila al final (totales o notas)."
 
 # Fórmulas
 FORMULA_EMPTY = "Escribe una fórmula."
@@ -469,6 +470,7 @@ Q_DATE_DETAIL = "Formato detectado: {fmt}."
 Q_DATE_AMBIGUOUS = "No se distingue si es día/mes o mes/día (ningún valor pasa de 12): confirma el formato."
 Q_NUMTEXT = "«{col}» tiene números guardados como texto"
 Q_NUMTEXT_DETAIL = "Al convertirla, {n} valores no se podrían leer."
+Q_NUMTEXT_DETAIL_OK = "Todos los valores se pueden convertir a número."
 Q_NUMTEXT_LIMITS = "{n} valores llevan «<» o «>» (límite de detección)."
 Q_CATS = "«{col}»: la misma categoría escrita de varias formas"
 Q_CATS_DETAIL = "Por ejemplo {ej} (mayúsculas, espacios o tildes)."
@@ -494,3 +496,195 @@ MYF_NEWER = "La biblioteca es de una versión más reciente de StatLab."
 MYF_UNMAPPED = "Indica qué columna corresponde a: {cols}."
 Q_DICT_MISSING = "«{col}»: códigos de perdido del diccionario"
 Q_DICT_MISSING_DETAIL = "{n} filas tienen un código que el diccionario define como perdido ({codes})."
+
+# Modo «Preparar datos»
+MODE_PREPARE = "1 · Preparar datos"
+MODE_ANALYZE = "2 · Analizar"
+PREP_SIDEBAR_TITLE = "Preparar datos"
+PREP_FILE = "Archivo"
+PREP_FILE_SUMMARY = "{name}\n{rows} filas × {cols} columnas leídas. El archivo original no se modifica."
+PREP_SHEET = "Hoja"
+PREP_HEADER_ROW = "Cabecera en la fila"
+PREP_TWO_HEADER_ROWS = "Cabecera de dos filas"
+PREP_DROP_TRAILING = "Ignorar totales al final"
+PREP_QUALITY = "Revisión de calidad"
+PREP_QUALITY_OK = "No se ha encontrado ningún problema."
+PREP_QUALITY_COUNT = "{n} · {g} graves"
+PREP_QUALITY_COUNT_1 = "{n} · 1 grave"
+PREP_FIX = "Corregir…"
+PREP_SHOW_ROWS = "Ver {n} filas"
+PREP_IGNORE = "Ignorar"
+PREP_RECIPE = "Receta"
+PREP_RECIPE_COUNT = "{n} pasos"
+PREP_RECIPE_COUNT_1 = "1 paso"
+PREP_RECIPE_EMPTY = (
+    "Aún no hay pasos. Cada cambio que hagas se añade aquí, en orden, y se puede desactivar, "
+    "reordenar o borrar en cualquier momento."
+)
+PREP_ADD_STEP = "Añadir paso"
+PREP_TOGGLE_STEP = "Activar o desactivar este paso"
+PREP_STEP_OFF = "Desactivado"
+PREP_MOVE_UP = "Subir"
+PREP_MOVE_DOWN = "Bajar"
+PREP_EDIT = "Editar"
+PREP_DELETE = "Borrar"
+PREP_CONTINUE = "Continuar al análisis →"
+PREP_ERROR_TITLE = "No se ha podido aplicar el cambio"
+PREP_PREVIEW = "Vista previa"
+PREP_PREVIEW_CELLS = "{n} celdas cambian"
+PREP_PREVIEW_ROWS = "{n} filas excluidas"
+PREP_PREVIEW_NEWCOLS = "columna nueva {cols}"
+PREP_PREVIEW_NOTHING = "Este paso no cambia nada en los datos actuales."
+PREP_BEFORE = "antes"
+PREP_AFTER = "después"
+PREP_ROW = "Fila"
+PREP_STATUS = "Estado"
+PREP_EXCLUDED = "Excluida"
+PREP_ADD = "Añadir a la receta"
+PREP_SAVE = "Guardar cambios"
+PREP_STEP_TITLES = {
+    "tipo": "Tipo de columna",
+    "perdidos": "Valores perdidos",
+    "recodificar": "Recodificar categorías",
+    "unidades": "Convertir unidades",
+    "categorizar": "Categorizar por cortes",
+    "calcular": "Nueva variable (calculadora)",
+    "fechas": "Tiempo entre dos fechas",
+    "seguimiento": "Tiempo de seguimiento y evento",
+    "excluir": "Excluir filas",
+    "duplicados": "Excluir duplicados",
+    "renombrar": "Renombrar columna",
+    "quitar": "Quitar columnas",
+}
+PREP_STEP_INTROS = {
+    "tipo": "Fija cómo se lee una columna: número (también «<0,5», «12,3 mg/dL»), categoría, ordinal, fecha o texto.",
+    "perdidos": "Convierte en perdidos los códigos que no son datos (999, -9…) o los valores que cumplan "
+                "una condición.",
+    "recodificar": "Une o renombra categorías: escribe el valor nuevo de cada una. Deja la casilla vacía para "
+                   "convertirla en perdido.",
+    "unidades": "Multiplica una columna por un factor, en todas las filas o solo en las que cumplan una condición "
+                "(p. ej. Hb en g/L → g/dL: factor 0,1 si hb > 40).",
+    "categorizar": "Crea una variable por intervalos. «18,5; 25; 30» da: < 18,5 · 18,5–25 · 25–30 · ≥ 30.",
+    "calcular": "Crea una variable con una fórmula, como en Excel: coma decimal y «;» entre argumentos. Los nombres "
+                "con espacios van entre corchetes: [fecha nacimiento].",
+    "fechas": "Diferencia entre dos columnas de fecha (por ejemplo, edad a partir de la fecha de nacimiento).",
+    "seguimiento": "Tiempo = fecha del evento (o, si no lo hubo, del último contacto) − fecha de inicio. "
+                   "Evento = 1 si hay fecha del evento; 0 si no (censurado).",
+    "excluir": "Las filas que cumplan la condición no entran en el análisis. No se borran: aparecen tachadas y "
+               "con su motivo en el diagrama de flujo de pacientes.",
+    "duplicados": "Excluye las filas repetidas (se conserva la primera). Sin columnas elegidas, compara la "
+                  "fila entera.",
+    "renombrar": "Cambia el nombre de una columna en la tabla de análisis.",
+    "quitar": "Quita columnas de la tabla de análisis (siguen en el archivo original).",
+}
+F_COLUMN = "Columna"
+F_COLUMNS = "Columnas"
+F_TYPE = "Tipo"
+F_DATE_FORMAT = "Formato de fecha"
+F_LIMITS = "Valores con «<» o «>»"
+F_LIMITS_VALUE = "Usar el número (<0,5 → 0,5)"
+F_LIMITS_NA = "Dejarlos como perdidos"
+F_ORDER = "Orden de las categorías"
+F_ORDER_HELP = "De menor a mayor, separadas por «;». Ejemplo: Leve; Moderada; Grave"
+F_MISSING_VALUES = "Códigos de perdido"
+F_MISSING_HELP = "Separados por «;». Ejemplo: 999; -9"
+F_CONDITION_OPTIONAL = "Condición (opcional)"
+F_CONDITION_HELP = "Ejemplo: hb > 25"
+F_RECODE = "Valores"
+F_RECODE_HELP = "Escribe el valor nuevo en la tercera columna."
+F_RECODE_OLD = "Valor actual"
+F_RECODE_N = "n"
+F_RECODE_NEW = "Valor nuevo"
+F_RECODE_NOTHING = "No has cambiado ningún valor."
+F_TARGET = "Nombre de la nueva columna"
+F_TARGET_OPTIONAL = "Guardar en otra columna (opcional)"
+F_FACTOR = "Factor"
+F_FACTOR_HELP = "Ejemplos: 0,1 (g/L → g/dL) · 88,4 (creatinina mg/dL → µmol/L)"
+F_UNITS_CONDITION_HELP = "Solo en las filas que la cumplan. Ejemplo: hb > 40"
+F_CUT_MODE = "Cómo cortar"
+F_CUT_POINTS = "Por cortes que eliges"
+F_CUT_QUANTILES = "Por cuantiles (grupos de igual tamaño)"
+F_CUTS = "Cortes"
+F_CUTS_HELP = "Separados por «;». Cada intervalo incluye su límite inferior: [25, 30)."
+F_QUANTILES = "Número de grupos"
+F_LABELS_OPTIONAL = "Etiquetas (opcional)"
+F_FORMULA = "Fórmula"
+F_FORMULA_HELP = (
+    "Operaciones + − * / ^ · comparaciones = <> < > <= >= · SI(condición; sí; no) · Y(…) · O(…) · MIN · MAX · "
+    "LN · EXP · RAIZ · REDONDEAR · ESNA · AÑOS(inicio; fin) · MESES · DIAS"
+)
+F_SAVE_MYF = "Guardar también en «Mis fórmulas»"
+F_INSERT_COLUMN = "Insertar columna…"
+F_INSERT_FUNCTION = "Insertar función…"
+F_DATE_START = "Fecha inicial"
+F_DATE_END = "Fecha final"
+F_UNIT = "Unidad"
+F_NO_DATE_COLUMNS = "No hay columnas de fecha: fija antes el tipo «fecha»"
+F_FU_START = "Fecha de inicio (inclusión)"
+F_FU_EVENT = "Fecha del evento"
+F_FU_LAST = "Fecha del último contacto"
+F_FU_TIME_NAME = "Nombre de la columna de tiempo"
+F_FU_EVENT_NAME = "Nombre de la columna de evento"
+F_EXCLUDE_IF = "Excluir si"
+F_EXCLUDE_HELP = "Ejemplos: edad < 18 · ESNA(hb) · Y(sexo = \"M\"; embarazo = \"Sí\")"
+F_REASON = "Motivo"
+F_REASON_HELP = "Aparece en el diagrama de flujo de pacientes. Ejemplo: Menores de 18 años"
+F_DUP_COLUMNS = "Comparar por"
+F_DUP_HELP = "Por ejemplo, el identificador. Sin ninguna elegida, compara la fila entera."
+F_NEW_NAME = "Nombre nuevo"
+F_REQUIRED = "Falta «{field}»."
+F_BAD_NUMBER = "«{field}» debe ser un número."
+F_BAD_NUMBERS = "Los cortes deben ser números separados por «;»."
+F_MISSING_NOTHING = "Indica los códigos de perdido o una condición."
+UNIT_YEARS = "años"
+UNIT_MONTHS = "meses"
+UNIT_DAYS = "días"
+
+# Diagrama de flujo de pacientes
+FLOW_TITLE = "Diagrama de flujo de pacientes"
+FLOW_NOTE = "Se actualiza con las exclusiones de la receta y las que hagas en la tabla. Se incluye en el informe."
+FLOW_TOTAL = "Registros en el archivo\nn = {n}"
+FLOW_FINAL = "Analizados\nn = {n}"
+FLOW_EXCLUDED = "{motivo}\nn = {n}"
+FLOW_MANUAL = "Excluidos a mano en la tabla"
+FLOW_OUTSIDE_SELECTION = "Fuera de «Analizar solo estas filas»"
+FLOW_EXPORT = "Exportar figura…"
+FLOW_FILTER = "Imagen PNG (*.png);;Imagen SVG (*.svg)"
+REPORT_FLOW = "Pacientes"
+REPORT_FLOW_CAPTION = "Diagrama de flujo de pacientes."
+REPORT_PREP = "Preparación de los datos"
+REPORT_PREP_HEAD = ("Paso", "Descripción")
+
+# Diccionario (interfaz)
+DICT_TITLE = "Diccionario de variables"
+DICT_EDIT = "Editar diccionario…"
+DICT_SUMMARY = "{n} de {total} variables descritas."
+DICT_INTRO = (
+    "Etiqueta y unidad se usan en tablas e informes. Los límites plausibles y los códigos de perdido "
+    "alimentan la revisión de calidad. Categorías: 1=Hombre|2=Mujer. Varios códigos: 999|-9."
+)
+DICT_COLS = {
+    "variable": "Variable", "etiqueta": "Etiqueta", "unidad": "Unidad", "descripcion": "Descripción",
+    "minimo": "Mínimo", "maximo": "Máximo", "perdidos": "Códigos de perdido", "categorias": "Categorías",
+}
+DICT_IMPORT = "Importar…"
+DICT_EXPORT = "Exportar…"
+DICT_FILTER = "Excel (*.xlsx);;CSV (*.csv)"
+DICT_IMPORT_UNKNOWN = "{n} variables del archivo no están en la tabla y no se han importado."
+
+# Mis fórmulas (interfaz)
+MYF_TITLE = "Mis fórmulas"
+MYF_BUTTON = "Mis fórmulas…"
+MYF_EMPTY = (
+    "Aún no hay fórmulas guardadas. Al crear una variable con la calculadora, marca «Guardar también en "
+    "Mis fórmulas» para reutilizarla en otros archivos."
+)
+MYF_INPUT = "Entrada «{name}»"
+MYF_APPLY = "Añadir a la receta"
+MYF_DELETE = "Borrar"
+MYF_IMPORT = "Importar…"
+MYF_EXPORT = "Exportar…"
+MYF_FILTER = "Mis fórmulas de StatLab (*.json)"
+MYF_IMPORTED = "{n} fórmulas nuevas y {m} sustituidas."
+ROW_EXCLUDED_BY_RECIPE = "Excluida por la receta: {motivo}"
+READ_OTHER_SHEET = "Los datos se han leído de la hoja «{sheet}» (las anteriores no tienen una tabla)."

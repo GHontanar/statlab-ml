@@ -551,3 +551,83 @@ QPushButton#ExportButton {
     padding: 0px 12px;
     min-height: 30px;
 }
+
+/* --- Modo «Preparar datos» ------------------------------------------- */
+QFrame#ModeSwitch {
+    background: ${gridline};
+    border-radius: ${radius_button}px;
+}
+QPushButton#ModeButton {
+    background: transparent;
+    border: none;
+    color: ${text_secondary};
+    padding: 5px 12px;
+    min-height: 0px;
+    font-weight: 500;
+}
+QPushButton#ModeButton:hover {
+    color: ${text};
+}
+QPushButton#ModeButton:checked {
+    background: ${panel};
+    color: ${text};
+    font-weight: 600;
+}
+QFrame#PrepSection {
+    background: ${panel};
+    border: 1px solid ${border};
+    border-radius: ${radius_card}px;
+}
+QFrame#ProblemCard {
+    background: ${bg};
+    border: 1px solid ${border};
+    border-left: 3px solid ${text_muted};
+    border-radius: 6px;
+}
+QFrame#ProblemCard[level="grave"] {
+    border-left: 3px solid ${na_text};
+}
+QFrame#ProblemCard[level="aviso"] {
+    border-left: 3px solid ${stale};
+}
+QLabel#ProblemTitle {
+    font-size: 13px;
+    font-weight: 600;
+}
+QFrame#RecipeRow {
+    border-bottom: 1px solid ${border};
+}
+QFrame#RecipeRow[state="off"] QLabel#RecipeText {
+    color: ${text_muted};
+    text-decoration: line-through;
+}
+QFrame#RecipeRow[state="error"] QLabel#RecipeText {
+    color: ${na_text};
+}
+QToolButton#RowTool {
+    color: ${text_secondary};
+    border: none;
+    padding: 0px 2px;
+    font-size: 13px;
+}
+QToolButton#RowTool:hover {
+    color: ${accent};
+}
+QLineEdit, QPlainTextEdit {
+    background: ${panel};
+    color: ${text};
+    border: 1px solid ${border_strong};
+    border-radius: ${radius_field}px;
+    padding: 4px 6px;
+    selection-background-color: ${accent_soft};
+    selection-color: ${text};
+}
+QLineEdit:focus, QPlainTextEdit:focus {
+    border: 2px solid ${accent};
+}
+QPlainTextEdit#FormulaEdit, QLabel#FormulaText {
+    font-family: "DejaVu Sans Mono", "Consolas", "Menlo", monospace;
+}
+QScrollArea#FlowScroll, QScrollArea#FlowScroll > QWidget > QWidget {
+    background: transparent;
+}

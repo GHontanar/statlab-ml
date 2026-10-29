@@ -7,6 +7,7 @@ from PySide6.QtCore import QSettings, Qt, Signal, qVersion
 from PySide6.QtGui import QAction, QActionGroup, QGuiApplication, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
+    QButtonGroup,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -27,6 +28,10 @@ from statlab.core.errors import ErrorUsuario
 from statlab.modules.base import AnalysisModule
 from statlab.ui import theme
 from statlab.ui.data_table.panel import DataPanel
+from statlab.ui.prep.dictionary import DiccionarioDialog
+from statlab.ui.prep.flow import PrepResults
+from statlab.ui.prep.my_formulas import MisFormulasDialog
+from statlab.ui.prep.sidebar import PrepSidebar
 from statlab.ui.results_panel import ResultsPanel
 from statlab.ui.session import SessionController
 from statlab.ui.sidebar.sidebar import Sidebar
@@ -48,9 +53,13 @@ def _panel(parent: QWidget | None = None) -> QFrame:
     return frame
 
 
+MODO_PREPARAR, MODO_ANALIZAR = "preparar", "analizar"
+
+
 class Header(QFrame):
     open_requested = Signal()
     save_requested = Signal()
+    mode_requested = Signal(str)
 
     def __init__(self, module_name: str, parent: QWidget | None = None):
         super().__init__(parent)
@@ -67,6 +76,26 @@ class Header(QFrame):
         module.setObjectName("ModuleName")
         for w in (self.logo, title, module):
             row.addWidget(w)
+        row.addSpacing(16)
+        # Selector de modo: preparar los datos o analizarlos
+        self.modes = QFrame()
+        self.modes.setObjectName("ModeSwitch")
+        modes_row = QHBoxLayout(self.modes)
+        modes_row.setContentsMargins(3, 3, 3, 3)
+        modes_row.setSpacing(2)
+        self.mode_group = QButtonGroup(self)
+        self.mode_buttons: dict[str, QPushButton] = {}
+        for modo, texto in ((MODO_PREPARAR, S.MODE_PREPARE), (MODO_ANALIZAR, S.MODE_ANALYZE)):
+            b = QPushButton(texto)
+            b.setObjectName("ModeButton")
+            b.setCheckable(True)
+            b.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+            b.clicked.connect(lambda _=False, m=modo: self.mode_requested.emit(m))
+            self.mode_group.addButton(b)
+            modes_row.addWidget(b)
+            self.mode_buttons[modo] = b
+        self.modes.hide()
+        row.addWidget(self.modes)
         row.addStretch(1)
 
         badge = QFrame()
@@ -155,18 +184,27 @@ class MainWindow(QMainWindow):
         self.header = Header(module.nombre)
         self.sidebar = Sidebar(self.session)
         self.sidebar.setMinimumWidth(260)
+        self.prep_sidebar = PrepSidebar(self.session)
+        self.sidebar_stack = QStackedWidget()
+        self.sidebar_stack.setMinimumWidth(260)
+        self.sidebar_stack.addWidget(self.sidebar)
+        self.sidebar_stack.addWidget(self.prep_sidebar)
+        self.prep_results = PrepResults(self.session)
         self.welcome = WelcomePanel()
         self.data_panel = DataPanel(self.session)
         self.data_stack = QStackedWidget()
         self.data_stack.addWidget(self.welcome)
         self.data_stack.addWidget(self.data_panel)
         self.results = ResultsPanel(self.session)
+        self.results_stack = QStackedWidget()
+        self.results_stack.addWidget(self.results)
+        self.results_stack.addWidget(self.prep_results)
 
         self.work_splitter = QSplitter(Qt.Orientation.Vertical)
         self.work_splitter.setChildrenCollapsible(False)
         self.work_splitter.setHandleWidth(10)
         self.work_splitter.addWidget(self.data_stack)
-        self.work_splitter.addWidget(self.results)
+        self.work_splitter.addWidget(self.results_stack)
         self.work_splitter.setSizes([480, 320])
 
         work = QWidget()
@@ -177,7 +215,7 @@ class MainWindow(QMainWindow):
         self.main_splitter = QSplitter(Qt.Orientation.Horizontal)
         self.main_splitter.setChildrenCollapsible(False)
         self.main_splitter.setHandleWidth(1)
-        self.main_splitter.addWidget(self.sidebar)
+        self.main_splitter.addWidget(self.sidebar_stack)
         self.main_splitter.addWidget(work)
         self.main_splitter.setStretchFactor(1, 1)
         self.main_splitter.setSizes([tk.METRICS["sidebar_width"], 1120])
@@ -194,8 +232,13 @@ class MainWindow(QMainWindow):
         self._build_menus()
         self.welcome.open_button.setFocus()
 
+        self.mode = MODO_ANALIZAR
         self.header.open_requested.connect(self.open_data)
         self.header.save_requested.connect(self.save_session)
+        self.header.mode_requested.connect(self.set_mode)
+        self.prep_sidebar.continue_requested.connect(lambda: self.set_mode(MODO_ANALIZAR))
+        self.prep_sidebar.dictionary_requested.connect(self.edit_dictionary)
+        self.prep_sidebar.my_formulas_requested.connect(self.my_formulas)
         self.session.dirty_changed.connect(self._update_title)
         self.welcome.open_requested.connect(self.open_data)
         self.welcome.example_requested.connect(self.load_example)
@@ -225,11 +268,29 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, S.READ_ERROR_TITLE, S.READ_ERROR.format(name=name, reason=e))
             return False
         settings().setValue(SETTINGS_LAST_DIR, str(Path(path).parent))
+        self.set_mode(MODO_PREPARAR)  # un archivo nuevo empieza por revisar y preparar los datos
         return True
 
     def load_example(self) -> None:
         if self.maybe_save():
             self.session.load_example()
+            self.set_mode(MODO_ANALIZAR)  # los datos de ejemplo ya están limpios
+
+    # --- Modo ------------------------------------------------------------
+    def set_mode(self, modo: str) -> None:
+        self.mode = modo
+        preparar = modo == MODO_PREPARAR
+        self.sidebar_stack.setCurrentWidget(self.prep_sidebar if preparar else self.sidebar)
+        self.results_stack.setCurrentWidget(self.prep_results if preparar else self.results)
+        self.header.mode_buttons[modo].setChecked(True)
+
+    def edit_dictionary(self) -> None:
+        if self.session.prep is not None:
+            DiccionarioDialog(self.session, self).exec()
+
+    def my_formulas(self) -> None:
+        if self.session.prep is not None:
+            MisFormulasDialog(self.session, self).exec()
 
     # --- Sesiones --------------------------------------------------------
     def open_session(self) -> None:
@@ -248,6 +309,7 @@ class MainWindow(QMainWindow):
             return False
         settings().setValue(SETTINGS_LAST_DIR, str(Path(path).parent))
         self._update_title()
+        self.set_mode(MODO_ANALIZAR)
         return True
 
     def save_session(self, save_as: bool = False) -> bool:
@@ -297,6 +359,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"{base} — {name}[*]" if name else f"{base}[*]")
         self.setWindowModified(self.session.dirty)
         has_data = self.session.dataset is not None
+        self.header.modes.setVisible(has_data)
         self.header.save_button.setEnabled(has_data)
         self.action_save.setEnabled(has_data)
         self.action_save_as.setEnabled(has_data)
