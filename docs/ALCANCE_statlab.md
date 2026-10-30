@@ -188,6 +188,56 @@ análisis **cambiando una decisión cada vez** y mide el acuerdo con la base usa
 - **Informe:** tabla de escenarios, gráfico resumen, texto automático de conclusiones y texto de métodos.
 - La sensibilidad a la imputación que ya existe queda integrada aquí.
 
+### 5.4 k-medoids (PAM) con distancia de Gower (F4)
+
+**Objetivo:** que las variables categóricas y ordinales entren en el modelo, algo que k-means,
+GMM y jerárquico no pueden hacer sin trucos (columnas 0/1 sin una forma neutral de escalarlas).
+
+- **Distancia de Gower:** mide lo distintos que son dos pacientes con variables mezcladas. Cada
+  variable aporta un valor entre 0 y 1 y se promedian:
+  - numérica: |diferencia| / rango;
+  - categórica: 0 si coinciden, 1 si no;
+  - ordinal: diferencia de rangos / (niveles − 1);
+  - perdidos: la variable no cuenta en esa pareja, así que **no hace falta imputar** (la
+    imputación queda como opción).
+- **PAM:** como k-means, pero el centro de cada grupo es un **paciente real** (el medoide):
+  - se puede presentar como caso típico;
+  - es más robusto a valores extremos;
+  - funciona con cualquier distancia.
+- **Normalización:** Gower ya pone todas las variables en la misma escala, así que no hay z-score.
+  Lo que hay que vigilar, con estas opciones:
+  - las **binarias tienden a pesar más** (un desacuerdo vale siempre 1): peso por variable (1 por
+    defecto) y un **diagnóstico de contribución** de cada variable a la distancia;
+  - un **valor extremo encoge una numérica** (el rango depende de dos pacientes): opción de rango
+    robusto (percentiles 1–99);
+  - **variables asimétricas:** log antes de Gower (tecla L, como ahora);
+  - **binarias raras** (síntoma presente o ausente): opción avanzada de binaria asimétrica (la
+    coincidencia en «no» no cuenta).
+- **En la aplicación:**
+  - solo en este algoritmo se admiten categóricas con rol Modelo;
+  - k por silueta (sobre la distancia de Gower);
+  - estabilidad por bootstrap y sensibilidad como en los demás (cada paciente se asigna a su
+    medoide más próximo);
+  - **gráfico 2D por escalado multidimensional** (MDS/PCoA) en lugar de PCA, enlazado con la tabla;
+  - perfiles con medias o medianas y **% de cada categoría** por cluster;
+  - **tabla de medoides** (el paciente típico de cada grupo).
+- **Límites:** matriz de distancias n × n (unos 100 MB con 5.000 pacientes). Más allá, CLARA
+  (PAM sobre submuestras), que queda para más adelante.
+- **Implementación propia** con numpy, sin dependencias nuevas.
+
+### 5.5 Análisis principal y de sensibilidad
+
+Ejecutar todos los algoritmos y quedarse con el que «sale mejor» es una mala práctica: equivale a
+probar pruebas hasta encontrar la que da significación. StatLab distingue:
+
+- **Análisis principal:** uno por pregunta, decidido antes de ver resultados (idealmente en el plan
+  de análisis, §8.7). Se marca en su pestaña y abre el informe.
+- **Análisis de sensibilidad:** los demás algoritmos o variantes. El informe los presenta siempre
+  **comparados con el principal** (ARI, Sankey; §5.2), no como candidatos alternativos.
+- **Exploratorios:** lo que se hace sin plan; se etiquetan así en el informe.
+- **Aviso en la interfaz:** la silueta favorece grupos redondos (estilo k-means) y el BIC los modelos
+  probabilísticos. Sirven para elegir k **dentro** de un método, no para elegir **entre** métodos.
+
 ## 6. Módulo ML supervisado
 
 ### 6.1 Alcance inicial: clasificación binaria
@@ -364,6 +414,53 @@ el usuario ponga en el diccionario; el catálogo solo ahorra escribirlos.
 - **Aviso de combinaciones raras** que permitan reidentificar (comprobación de *k*-anonimato).
 - Exporta una copia anonimizada; los datos originales no se tocan.
 
+### 8.7 Plan de análisis guiado
+
+Un asistente para clínicos que **decide todo antes de ejecutar los modelos**, lo deja fechado y
+cerrado, y lo incluye en el informe. Evita elegir el método por el resultado y deja constancia de
+lo que se planeó frente a lo que se hizo. Sirve para todos los módulos; se implementa primero para
+el no supervisado (F4).
+
+**Pasos del asistente** (cada uno con ayuda en lenguaje llano y una recomendación razonada):
+
+1. **Pregunta clínica:** texto libre y el tipo de objetivo, que orienta el método:
+   - fenotipos o perfiles típicos para estratificar → k-means o k-medoids;
+   - subpoblaciones que pueden solaparse, con interés en los pacientes de frontera → GMM;
+   - subtipos dentro de tipos → jerárquico;
+   - subgrupos raros sin forzar a todos a pertenecer a uno → HDBSCAN (cuando exista).
+2. **Población:** criterios de inclusión y exclusión, enlazados con las exclusiones con motivo de la
+   receta (§8.1) y el diagrama de flujo.
+3. **Variables:** las del modelo, cada una con una justificación breve, y las **de validación
+   externa** (desenlaces, tratamientos) que **no** entran en el modelo y servirán para comprobar el
+   sentido clínico de los grupos.
+4. **Comprobaciones de los datos** (automáticas, solo de supuestos, sin ajustar ningún modelo):
+   - asimetría → proponer log;
+   - variables muy correlacionadas → avisar y orientar hacia GMM o hacia quitar redundancias;
+   - categóricas en el modelo → k-medoids con Gower;
+   - % de perdidos por variable → método de imputación;
+   - pacientes por variable → avisar si son pocos y recomendar modelos sencillos.
+5. **Método principal:** el que recomiendan los pasos 1 y 4, que el usuario confirma o cambia
+   (con justificación), más el criterio para elegir k (silueta, BIC, dendrograma), el rango de k y la
+   semilla.
+6. **Validación:**
+   - estabilidad (remuestras bootstrap, umbral de Jaccard, 0,75 por defecto);
+   - variables de validación externa;
+   - opción de **reservar una parte de la muestra para replicación** (por ejemplo, el 30 %), que no
+     se usa hasta el final.
+7. **Sensibilidad prevista:** otros algoritmos y escenarios de §5.3, que quedan creados como
+   análisis de sensibilidad.
+8. **Cierre:** el plan se **fecha y se bloquea** (con una huella del plan y de los datos).
+
+**Después del cierre:**
+- StatLab crea las pestañas: la del principal marcada como tal y las de sensibilidad, con los
+  parámetros del plan ya puestos.
+- Cambiar algo planificado pide un motivo y queda registrado como **desviación del plan**.
+- El informe incluye el plan, su fecha, las desviaciones con su motivo y la comparación del
+  principal con la sensibilidad.
+- El plan se puede **exportar a PDF o Word**, por ejemplo para registrarlo (OSF) o adjuntarlo a un
+  protocolo.
+- Sin plan, todo funciona igual que ahora, pero los análisis se etiquetan como **exploratorios**.
+
 ### 8.6 Plantillas de análisis
 
 Guardar la receta y la configuración del análisis **sin los datos** y aplicarlas a un archivo nuevo
@@ -425,7 +522,7 @@ Cada fase termina en una versión publicada, con tests en CI en los tres SO y el
 | **F1** | — | Distribución en el hospital (§10): sin certificado (decidido); solo las vías gratuitas que dependen de informática. Medir el rendimiento con 5.000 filas | Tiempos medidos y documentados |
 | **F2** ✔ | v0.2 | **Preparación de datos**, núcleo (§8.1, pasos 1–5 y 7): receta no destructiva, revisión de calidad, tipos, recodificar, nuevas variables con fechas; **diccionario** (§8.2); **diagrama de flujo de pacientes** (§8.4) | Un Excel «sucio» de referencia (hoja 2, cabecera en la fila 3, unidades mezcladas, categorías incoherentes, fechas dd/mm) queda listo sin escribir código; la receta se reaplica idéntica al reabrir la sesión; una fórmula de «Mis fórmulas» se aplica a otro archivo asignando sus columnas |
 | **F3** ✔ | v0.3 | Sesión con varias soluciones, cada análisis en su pestaña (`.statlab` v2 con migración); **jerárquico** y **GMM**; **comparación de soluciones** (§5.2), incluida **importar solución** de otra sesión o de un CSV `id;cluster` | Con la cohorte de prueba, k-means y GMM con k=4 dan un ARI ≥ 0,90 y el Sankey enlaza con la tabla; una solución importada de otra sesión y la misma exportada a CSV dan el mismo ARI; las sesiones v1 se abren |
-| **F4** | v0.4 | **Sensibilidad** generalizada (§5.3); k-medoids con Gower | El informe incluye todos los escenarios y la conclusión automática; la robustez por paciente aparece en la tabla |
+| **F4** | v0.4 | **Plan de análisis guiado** (§8.7) y análisis principal/sensibilidad/exploratorio (§5.5); **sensibilidad** generalizada (§5.3); **k-medoids con Gower** (§5.4) | Un plan cerrado crea el análisis principal y los de sensibilidad con sus parámetros; un cambio posterior queda como desviación con motivo; el informe incluye plan, desviaciones y comparación; todos los escenarios de sensibilidad y la conclusión automática; la robustez por paciente en la tabla; k-medoids recupera los perfiles de la cohorte de prueba con variables categóricas añadidas |
 | **F5** | v0.5 | Base generalizada (roles, pipeline, pantalla «¿Qué quieres hacer?»); **Tabla 1** y **contrastes**; **datos faltantes a fondo** (§8.3) | La Tabla 1 exportada a Word coincide con R (`tableone`) en un dataset de referencia; MICE combinado coincide con R (`mice`) |
 | **F6** | v0.6 | **Supervisado**: logística penalizada, RF, gradient boosting; validación, calibración, curva de decisión, interpretabilidad | Sin fuga de información (test específico); AUC y calibración coinciden con una referencia en scikit-learn |
 | **F7** | v0.7 | **Supervivencia**: KM, log-rank y Cox; regresión inferencial (§7.3) | HR e IC coinciden con R (`survival`) en un dataset de referencia |
@@ -466,7 +563,7 @@ colaboración en tiempo real.
 
 1. ¿Qué mensaje exacto da el bloqueo en el hospital? **Resuelto:** Panda Adaptive Defense 360 bloquea programas desconocidos (§10).
 2. ¿Se paga un certificado de firma de código? **Decidido: no** (proyecto personal).
-3. ¿Se permiten las categóricas en el modelo? (Reabre una decisión cerrada de la v1.)
+3. ¿Se permiten las categóricas en el modelo? (Reabre una decisión cerrada de la v1.) **Propuesta:** solo en k-medoids con Gower (§5.4).
 4. ¿Se puede aplicar un modelo a datos nuevos, y con qué limitaciones? (§3)
 5. Dependencias de la §12, una por una.
 6. ¿El límite de 5.000 filas se mantiene, o se fija por algoritmo tras medir el rendimiento?
