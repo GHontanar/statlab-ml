@@ -50,6 +50,8 @@ class Dataset:
     solo_filas: set[int] | None = None  # None = todas
     excluidas: set[int] = field(default_factory=set)
     subgrupos: dict[str, list[int]] = field(default_factory=dict)
+    # filas excluidas por la receta de preparación (posición → motivo); no se tocan desde la tabla
+    excluidas_receta: dict[int, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.df = self.df.reset_index(drop=True)
@@ -132,16 +134,16 @@ class Dataset:
     def filas_activas(self) -> np.ndarray:
         """Posiciones de las filas que entran en el análisis, ordenadas."""
         base = range(self.n_filas) if self.solo_filas is None else self.solo_filas
-        return np.array(sorted(set(base) - self.excluidas), dtype=int)
+        return np.array(sorted(set(base) - self.excluidas - set(self.excluidas_receta)), dtype=int)
 
     def fila_activa(self, fila: int) -> bool:
-        if fila in self.excluidas:
+        if fila in self.excluidas or fila in self.excluidas_receta:
             return False
         return self.solo_filas is None or fila in self.solo_filas
 
     @property
     def filtro_filas_activo(self) -> bool:
-        return self.solo_filas is not None or bool(self.excluidas)
+        return self.solo_filas is not None or bool(self.excluidas) or bool(self.excluidas_receta)
 
     def analizar_solo(self, filas: list[int]) -> None:
         self.solo_filas = set(filas)

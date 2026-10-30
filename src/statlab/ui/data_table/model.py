@@ -35,6 +35,10 @@ def _format_column(series: pd.Series) -> np.ndarray:
         d = fmt.column_decimals(series)
         values = series.to_numpy(dtype=float)
         return np.array([fmt.num(v, d) for v in values], dtype=object)
+    if pd.api.types.is_datetime64_any_dtype(series):
+        horas = series.dropna().dt.normalize().ne(series.dropna()).any()
+        formato = "%d/%m/%Y %H:%M" if horas else "%d/%m/%Y"
+        return np.array(["" if pd.isna(v) else v.strftime(formato) for v in series], dtype=object)
     return np.array(["" if pd.isna(v) else str(v) for v in series], dtype=object)
 
 
@@ -57,6 +61,7 @@ class DataFrameModel(QAbstractTableModel):
         self._cluster = np.full(len(df), -1)
         self._sil = np.full(len(df), np.nan)
         self.highlight: int | None = None
+        self.etiquetas: dict[str, str] = {}  # nombre → «Etiqueta (unidad)» del diccionario, para el tooltip
 
     # --- Tamaño ---------------------------------------------------------
     def rowCount(self, parent: _Index = _ROOT) -> int:
@@ -196,8 +201,10 @@ class DataFrameModel(QAbstractTableModel):
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole):
         if orientation == Qt.Orientation.Horizontal:
             name = self.column_name(section)
-            if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.ToolTipRole):
+            if role == Qt.ItemDataRole.DisplayRole:
                 return name
+            if role == Qt.ItemDataRole.ToolTipRole:
+                return self.etiquetas.get(name, name)
             if role == ROLE_COLUMN_ROLE:
                 return RESULT if self.is_result_column(section) else self.dataset.roles.get(name)
             if role == ROLE_COLUMN_LOG:
@@ -210,6 +217,8 @@ class DataFrameModel(QAbstractTableModel):
             return str(src + 1)
         if role == ROLE_ROW_ACTIVE:
             return self.dataset.fila_activa(src)
+        if role == Qt.ItemDataRole.ToolTipRole and src in self.dataset.excluidas_receta:
+            return S.ROW_EXCLUDED_BY_RECIPE.format(motivo=self.dataset.excluidas_receta[src])
         return None
 
     # --- Orden ----------------------------------------------------------

@@ -1,4 +1,9 @@
-"""Módulo de clustering k-means sobre `statlab.core.kmeans`."""
+"""Módulos de clustering (k-means, mezclas gaussianas y jerárquico).
+
+Comparten pasos, controles, paneles e informe; lo propio de cada algoritmo
+(opciones, criterio del barrido, dendrograma, probabilidades) sale de
+`statlab.core.clustering`.
+"""
 from __future__ import annotations
 
 from typing import Any
@@ -6,6 +11,7 @@ from typing import Any
 import numpy as np
 
 from statlab import strings_es as S
+from statlab.core import clustering as cl
 from statlab.core import fmt
 from statlab.core import kmeans as km
 from statlab.core.dataset import Rol
@@ -22,6 +28,7 @@ from statlab.modules.base import (
 
 PREP_DEFAULTS = {"imputacion": "knn", "vecinos": 5, "escalado": "standard"}
 SWEEP_DEFAULTS = {"k_min": 2, "k_max": 8, "n_init": 20, "semilla": 2026, "bootstrap": True, "B": 50}
+SWEEP_ALG_DEFAULTS = {"kmeans": {}, "gmm": {"n_init": 5, "covarianza": "full"}, "jerarquico": {"enlace": "ward"}}
 FINAL_DEFAULTS = {"k": None, "B": 200}
 K_MAX = 8  # la paleta tiene 8 colores y nunca se cicla
 
@@ -109,12 +116,36 @@ def resumen_barrido(estado: EstadoSesion) -> str:
 
 
 def k_elegido(estado: EstadoSesion) -> int | None:
-    """k del modelo final: el que eligió el usuario o, si no, el de mejor silueta."""
+    """k del modelo final: el que eligió el usuario o, si no, el de mejor silueta (en GMM, el de
+    menor BIC)."""
     r = estado.resultados.get("elegir_k")
     if not r or "error" in r:
         return None
     k = estado.params("modelo_final").get("k")
-    return int(k) if k in r["ks"] else int(r["mejor"]["silueta"])
+    if k in r["ks"]:
+        return int(k)
+    return int(r["mejor"]["criterio"] if r.get("algoritmo") == "gmm" else r["mejor"]["silueta"])
+
+
+def opciones(estado: EstadoSesion, alg: cl.Algoritmo) -> dict[str, Any]:
+    """Opciones del algoritmo guardadas en los parámetros del barrido."""
+    p = estado.params("elegir_k")
+    op = {k: p[k] for k in alg.opciones_defecto() if k in p}
+    op["n_init"] = int(p["n_init"])
+    return op
+
+
+def mejor_criterio(alg: cl.Algoritmo, ks: list[int], valores: list[float]) -> int:
+    """k que sugiere el criterio propio: codo de la inercia, mínimo BIC o mayor salto de altura."""
+    if alg.id == "kmeans":
+        return km.elbow_k(ks, valores)
+    v = np.asarray(valores, dtype=float)
+    if alg.id == "gmm":
+        return ks[int(np.nanargmin(v))]
+    if len(v) < 2:
+        return ks[0]
+    saltos = v[:-1] - v[1:]  # altura que se gana al no fusionar los dos últimos grupos
+    return ks[int(np.nanargmax(saltos))]
 
 
 def _matriz(estado: EstadoSesion):
@@ -123,24 +154,35 @@ def _matriz(estado: EstadoSesion):
     return prep["_preparado"].X if "_preparado" in prep else preprocesar(estado)["_preparado"].X
 
 
-def barrer(estado: EstadoSesion, progreso: Progreso, cancelar: Cancelar) -> Resultado:
+def barrer(estado: EstadoSesion, progreso: Progreso, cancelar: Cancelar, alg_id: str = "kmeans") -> Resultado:
+    alg = cl.algoritmo(alg_id)
     p = estado.params("elegir_k")
+    op = opciones(estado, alg)
+    seed = int(p["semilla"])
     X = _matriz(estado)
     ks = list(range(int(p["k_min"]), int(p["k_max"]) + 1))
-    peso = 0.25 if p["bootstrap"] else 1.0  # el bootstrap es lo que más tarda
-    sw = km.sweep_k(X, ks, int(p["n_init"]), int(p["semilla"]), lambda f: progreso(peso * f), cancelar)
+    peso = 0.25 if p["bootstrap"] else 0.8  # el bootstrap es lo que más tarda
+    sw = cl.sweep(alg, X, ks, op, seed, lambda f: progreso(peso * f), cancelar)
     boot = None
     if p["bootstrap"]:
-        bk = km.sweep_k_bootstrap(X, ks, int(p["B"]), seed=int(p["semilla"]),
-                                  progress=lambda f: progreso(peso + (1 - peso) * f), should_cancel=cancelar)
+        if alg.id == "kmeans":  # el mismo cálculo de siempre (resultados idénticos a versiones anteriores)
+            bk = km.sweep_k_bootstrap(X, ks, int(p["B"]), seed=seed,
+                                      progress=lambda f: progreso(peso + 0.7 * f), should_cancel=cancelar)
+        else:
+            bk = cl.sweep_bootstrap(alg, X, ks, op, int(p["B"]), seed,
+                                    progress=lambda f: progreso(peso + 0.7 * f), should_cancel=cancelar)
         boot = {"media": bk["Silueta media boot"].tolist(), "ic_inf": bk["IC95 inf"].tolist(),
                 "ic_sup": bk["IC95 sup"].tolist(), "B": int(p["B"])}
+    extra = alg.extra_barrido(X, ks, op, seed)
     progreso(1.0)
     sil, ch, db = sw["Silueta"].tolist(), sw["Calinski-Harabasz"].tolist(), sw["Davies-Bouldin"].tolist()
-    return {
+    crit = sw["criterio"].tolist()
+    r = {
+        "algoritmo": alg.id,
+        "opciones": op,
         "ks": ks,
         "n": int(len(X)),
-        "inercia": sw["Inercia"].tolist(),
+        "criterio": {"id": alg.criterio, "valores": crit},
         "silueta": sil,
         "ch": ch,
         "db": db,
@@ -150,9 +192,14 @@ def barrer(estado: EstadoSesion, progreso: Progreso, cancelar: Cancelar) -> Resu
             "silueta": ks[int(np.nanargmax(sil))],
             "ch": ks[int(np.nanargmax(ch))],
             "db": ks[int(np.nanargmin(db))],
-            "codo": km.elbow_k(ks, sw["Inercia"]),
+            "criterio": mejor_criterio(alg, ks, crit),
         },
+        **_json(extra),
     }
+    if alg.id == "kmeans":  # nombres de siempre: los usan sesiones e informes anteriores
+        r["inercia"] = crit
+        r["mejor"]["codo"] = r["mejor"]["criterio"]
+    return r
 
 
 def _json(x):
@@ -191,8 +238,9 @@ def resumen_final(estado: EstadoSesion) -> str:
     return "\n".join(lineas)
 
 
-def ajustar(estado: EstadoSesion, progreso: Progreso, cancelar: Cancelar) -> Resultado:
+def ajustar(estado: EstadoSesion, progreso: Progreso, cancelar: Cancelar, alg_id: str = "kmeans") -> Resultado:
     """Modelo final: ajuste, validación bootstrap, PCA, perfiles, descriptivas y sensibilidad."""
+    alg = cl.algoritmo(alg_id)
     ds = estado.dataset
     prep_r = estado.resultados.get("preprocesado", {})
     prep = prep_r["_preparado"] if "_preparado" in prep_r else preprocesar(estado)["_preparado"]
@@ -201,26 +249,38 @@ def ajustar(estado: EstadoSesion, progreso: Progreso, cancelar: Cancelar) -> Res
     sweep = estado.params("elegir_k")
     n_init, seed = int(sweep["n_init"]), int(sweep["semilla"])
     B = int(estado.params("modelo_final")["B"])
+    op = opciones(estado, alg)
 
-    model, labels = km.fit_kmeans(X, k, n_init, seed)
+    aj = alg.ajustar(X, k, op, seed)
+    labels = aj.labels
     sil_obs = km.silhouette_per_point(X, labels)
     progreso(0.05)
-    boot = km.bootstrap_validate(X, k, labels, B=B, seed=seed,
-                                 progress=lambda f: progreso(0.05 + 0.75 * f), should_cancel=cancelar)
-    coords, centros, var = km.pca_2d(X, model.cluster_centers_)
+    if alg.id == "kmeans":  # el mismo cálculo de siempre (resultados idénticos a versiones anteriores)
+        boot = km.bootstrap_validate(X, k, labels, B=B, seed=seed,
+                                     progress=lambda f: progreso(0.05 + 0.75 * f), should_cancel=cancelar)
+    else:
+        boot = cl.bootstrap_validate(alg, X, k, labels, op, B=B, seed=seed,
+                                     progress=lambda f: progreso(0.05 + 0.75 * f), should_cancel=cancelar)
+    coords, centros, var = km.pca_2d(X, aj.centros)
     filas = ds.df.loc[prep.row_index]
     cols = list(prep.columns)
     desc, z = km.cluster_profiles(filas, cols, X, labels)
     descriptivas = ds.con_rol(Rol.DESCRIPTIVA)
     ext = km.describe_external(filas, descriptivas, labels) if descriptivas else None
     p = estado.params("preprocesado")
-    sens, n_sens = km.imputation_sensitivity(
-        ds.df.iloc[ds.filas_activas()], cols, k, p["escalado"], int(p["vecinos"]), n_init, seed,
+    sens, n_sens = cl.imputation_sensitivity(
+        alg, ds.df.iloc[ds.filas_activas()], cols, k, p["escalado"], int(p["vecinos"]), op, seed,
         log_cols=prep.log_cols, progress=lambda f: progreso(0.8 + 0.18 * f), should_cancel=cancelar,
     )
     progreso(1.0)
     jaccard_ci = np.asarray(boot.jaccard_ci)
+    extra = {}
+    if aj.probabilidades is not None:
+        extra["probabilidad"] = cl.describe_probabilidades(aj.probabilidades)
     return _json({
+        "algoritmo": alg.id,
+        "opciones": op,
+        **extra,
         "k": k,
         "n": len(X),
         "filas": [int(i) for i in prep.row_index],
@@ -245,7 +305,7 @@ def ajustar(estado: EstadoSesion, progreso: Progreso, cancelar: Cancelar) -> Res
         "descriptivas": _tabla(ext) if ext is not None and len(ext) else None,
         "sensibilidad": {"metodos": list(sens.index), "ari": sens.values,
                          "n": {km.IMPUTATION_METHODS[m]: n for m, n in n_sens.items()}},
-        "metodos": km.methods_text(prep, k, n_init, seed, (int(sweep["k_min"]), int(sweep["k_max"])),
+        "metodos": cl.methods_text(alg, prep, k, op, n_init, seed, (int(sweep["k_min"]), int(sweep["k_max"])),
                                    float(np.mean(sil_obs)), boot),
     })
 
@@ -290,10 +350,11 @@ def _widget_exportar(controlador: Any):
     return ExportWidget(controlador)
 
 
-class KMeansModule(AnalysisModule):
-    id = "kmeans"
-    nombre = S.KMEANS_NAME
+class ClusteringModule(AnalysisModule):
+    """Base de los tres módulos: `id` es también el del algoritmo en `core.clustering`."""
+
     icono = "logo"
+    descripcion = ""
 
     def pasos_propios(self) -> list[Paso]:
         return [
@@ -313,7 +374,7 @@ class KMeansModule(AnalysisModule):
                 S.STEP_CHOOSE_K,
                 calcula=True,
                 boton=S.SWEEP_RUN,
-                parametros=dict(SWEEP_DEFAULTS),
+                parametros={**SWEEP_DEFAULTS, **SWEEP_ALG_DEFAULTS[self.id]},
                 crear_widget=_widget_barrido,
                 resumen=resumen_barrido,
                 validar=validar_barrido,
@@ -345,9 +406,9 @@ class KMeansModule(AnalysisModule):
             progreso(1.0)
             return resultado
         if paso == "elegir_k":
-            return barrer(estado, progreso, cancelar)
+            return barrer(estado, progreso, cancelar, self.id)
         if paso == "modelo_final":
-            return ajustar(estado, progreso, cancelar)
+            return ajustar(estado, progreso, cancelar, self.id)
         if paso == "exportar":
             return exportar_archivos(self, estado, progreso)
         raise NotImplementedError(f"Paso «{paso}» todavía no implementado")
@@ -370,3 +431,21 @@ class KMeansModule(AnalysisModule):
         from statlab.modules.kmeans.report import construir
 
         return construir(estado)
+
+
+class KMeansModule(ClusteringModule):
+    id = "kmeans"
+    nombre = S.KMEANS_NAME
+    descripcion = S.KMEANS_DESC
+
+
+class GMMModule(ClusteringModule):
+    id = "gmm"
+    nombre = S.GMM_NAME
+    descripcion = S.GMM_DESC
+
+
+class JerarquicoModule(ClusteringModule):
+    id = "jerarquico"
+    nombre = S.HIER_NAME
+    descripcion = S.HIER_DESC

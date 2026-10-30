@@ -44,7 +44,7 @@ def test_sweep_results_and_panel(ready, qtbot):
     assert s.flujo["modelo_final"] == E.ACTIVO
 
     r = s.estado.resultados["elegir_k"]
-    assert r["mejor"] == {"silueta": 2, "ch": 3, "db": 2, "codo": 3}
+    assert r["mejor"] == {"silueta": 2, "ch": 3, "db": 2, "codo": 3, "criterio": 3}
     assert round(r["silueta"][0], 3) == 0.557
     assert len(r["boot"]["ic_inf"]) == 7
 

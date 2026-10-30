@@ -5,6 +5,7 @@ from statlab.modules.base import AnalysisModule
 
 
 def available_modules() -> list[AnalysisModule]:
-    from statlab.modules.kmeans.module import KMeansModule
+    """El primero es el de las sesiones nuevas."""
+    from statlab.modules.kmeans.module import GMMModule, JerarquicoModule, KMeansModule
 
-    return [KMeansModule()]
+    return [KMeansModule(), GMMModule(), JerarquicoModule()]

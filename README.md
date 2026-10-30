@@ -1,9 +1,10 @@
 # StatLab
 
 Aplicación de escritorio para análisis estadístico clínico. El primer módulo es
-**clustering k-means**: barrido de k, modelo final, validación por bootstrap
-(silueta, Jaccard por cluster tipo *clusterboot*), perfiles, sensibilidad a la
-imputación, sesiones guardables e informes PDF y Word. Pensada para clínicos:
+**clustering**: k-means, mezclas gaussianas (GMM) y jerárquico, con barrido de k,
+modelo final, validación por bootstrap (silueta, Jaccard por cluster tipo
+*clusterboot*), perfiles, sensibilidad a la imputación, **comparación de
+soluciones** (ARI), preparación de datos, sesiones guardables e informes PDF y Word. Pensada para clínicos:
 interfaz gráfica, sin escribir código y **sin conexión**: los datos nunca salen
 del equipo (no hay telemetría ni comprobación de actualizaciones).
 
@@ -37,19 +38,54 @@ No hace falta instalar Python ni nada más, ni permisos de administrador.
 ### Cómo se usa
 
 1. **Datos**: «Abrir datos…» (CSV, TSV o Excel) o «Probar con datos de ejemplo».
+   Al abrir un archivo se entra en **1 · Preparar datos** (selector de la cabecera):
+   - **Archivo**: en Excel, la hoja y la fila de la cabecera (se detectan solas, también
+     cabeceras de dos filas y filas de totales al final).
+   - **Revisión de calidad**: duplicados, números guardados como texto («<0,5»), fechas,
+     la misma categoría escrita de varias formas, códigos como 999, unidades mezcladas…
+     Cada aviso propone una corrección que se ve antes de aplicarla; nada se cambia solo.
+   - **Receta**: cada cambio es un paso que se puede desactivar, reordenar, editar o borrar.
+     El archivo original nunca se modifica. «Añadir paso» incluye la calculadora de nuevas
+     variables (fórmulas como en Excel: `peso / (talla/100)^2`), tiempo entre fechas,
+     tiempo de seguimiento y evento, categorizar, recodificar y excluir filas con su motivo.
+   - **Mis fórmulas**: guarda tus cálculos para reutilizarlos en otros archivos.
+   - **Diccionario**: etiqueta, unidad, límites plausibles y códigos de perdido de cada
+     variable (importable y exportable en Excel o CSV). Las etiquetas salen en el informe.
+   - **Diagrama de flujo de pacientes**: se construye con las exclusiones y va al informe.
+
+   Después, **2 · Analizar**:
 2. **Variables y filas**: en la tabla, selecciona columnas (clic, arrastre,
    Mayús/Ctrl) y pulsa **M** (modelo), **D** (descriptiva), **I** (identificador)
    o **L** (log). Para filas, selecciona sus números y usa la barra ámbar.
 3. **Preprocesado**: valores perdidos y escalado; el resultado se ve al momento.
 4. **Elegir k**: «Calcular barrido de k» y haz clic en el punto del k elegido.
+   En GMM se elige también la forma de los clusters (el gráfico de BIC compara las
+   cuatro); en el jerárquico, el tipo de enlace, y el k se elige cortando el dendrograma.
 5. **Modelo final**: «Ajustar y validar». Cifras clave, PCA (clic o lazo
    seleccionan filas en la tabla), perfiles, silueta, estabilidad, sensibilidad y
    descriptivas.
 6. **Exportar**: informe PDF o Word, figuras, CSV con el cluster de cada paciente,
    JSON y texto de métodos.
 
+**Varios análisis sobre los mismos datos**: «+ Nuevo análisis» abre otra pestaña
+(k-means, GMM o jerárquico) con los mismos datos, roles y filas que el análisis activo;
+la preparación de datos es común a todos. En GMM, la pestaña «Pertenencia» muestra la
+probabilidad de cada paciente y permite seleccionar los de frontera.
+
+**Comparar soluciones**: la pestaña «Comparar soluciones» calcula el índice de Rand
+ajustado (ARI) entre dos soluciones, con su IC y su interpretación, el % de pacientes en el
+mismo grupo, el flujo entre clusters (Sankey: clic en una banda para ver esos pacientes),
+la tabla cruzada y la lista de los que cambian de grupo. También se pueden importar
+soluciones de otra sesión `.statlab` o de un CSV con columnas `id` y `cluster` (por
+ejemplo, de R o SPSS).
+
 «Guardar sesión» guarda todo en un archivo `.statlab` que se vuelve a abrir tal
-cual. **Ese archivo, el CSV y el JSON contienen los datos de los pacientes:
+cual: el archivo original, la receta, el diccionario, todos los análisis y las soluciones
+importadas.
+
+En `ejemplos/` hay datos ficticios para probar: `cohorte_cardiometabolica_prueba.csv`
+(limpio, 4 perfiles) y `registro_sucio_prueba.xlsx` (el mismo con los problemas típicos de
+un Excel clínico, para practicar la preparación). **Ese archivo, el CSV y el JSON contienen los datos de los pacientes:
 guárdalos en un lugar seguro.**
 
 ## Desarrollo
@@ -81,9 +117,9 @@ El workflow **Build** (`.github/workflows/build.yml`) genera los tres paquetes
 ejecutable con `--self-test`, que recorre el análisis con los datos de ejemplo y
 exporta todos los formatos. Para publicar una versión, cualquiera de estas vías:
 
-- **Subir la versión** en `pyproject.toml` y `src/statlab/__init__.py` y hacer push a la
-  rama principal: si esa versión aún no tiene etiqueta, el workflow la crea y publica
-  la Release con los tres paquetes.
+- **Subir la versión** en `pyproject.toml` y `src/statlab/__init__.py` en una rama de
+  trabajo e integrarla en `main` con una pull request: al llegar a `main` una versión que
+  aún no tiene etiqueta, el workflow la crea y publica la Release con los tres paquetes.
 - **Etiqueta**: `git tag v0.2.0 && git push origin v0.2.0`.
 - **A mano**: pestaña *Actions* → *Build* → *Run workflow*, con `version` = `v0.2.0`
   (vacío = solo compilar; los paquetes quedan como artefactos del run).
@@ -98,18 +134,22 @@ Gatekeeper en macOS), y el paquete de macOS es solo para Apple Silicon.
 ```
 src/statlab/
   core/        lógica pura, sin Qt: io.py (lectura), dataset.py (roles y filas),
+               clustering.py (k-means, GMM, jerárquico), comparacion.py (ARI),
+               prep/ (receta, fórmulas, revisión de calidad, diccionario, Mis fórmulas),
                flow.py (estados de los pasos), estado.py (estado de la sesión),
                fmt.py (números en español), kmeans.py (motor), session.py (.statlab),
                report/ (figuras matplotlib, PDF, Word, CSV/JSON/métodos)
   modules/     contrato AnalysisModule (base.py) y módulo kmeans/
-  ui/          ventana, tabla de datos, barra lateral, tema (tokens, QSS, Inter, iconos)
+  ui/          ventana, tabla de datos, barra lateral, prep/ (modo «Preparar datos»),
+               tema (tokens, QSS, Inter, iconos)
   workers.py   cálculos en segundo plano (QThreadPool) con progreso y cancelación
   selftest.py  autocomprobación del paquete compilado
   strings_es.py  textos de la interfaz
   data/        datos de ejemplo integrados
 packaging/     PyInstaller (statlab.spec), iconos, acceso directo de Linux, licencias
 tests/         core/ (pytest) y ui/ (pytest-qt)
-docs/          documento de traspaso y capturas de cada hito
+docs/          documento de traspaso, alcance (ALCANCE_statlab.md) y capturas de cada hito
+ejemplos/      datos de prueba ficticios y sus generadores
 prototipo/     versión Streamlit anterior, solo como referencia
 ```
 

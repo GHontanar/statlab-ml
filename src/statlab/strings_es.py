@@ -42,6 +42,11 @@ RESULTS_EMPTY = "Los resultados aparecerán aquí a medida que completes los pas
 
 # Módulo k-means
 KMEANS_NAME = "Clustering k-means"
+KMEANS_DESC = "Grupos compactos alrededor de un centro. Rápido y el más usado."
+GMM_NAME = "Mezclas gaussianas (GMM)"
+GMM_DESC = "Grupos con forma y tamaño propios; da la probabilidad de pertenencia de cada paciente."
+HIER_NAME = "Clustering jerárquico"
+HIER_DESC = "Árbol de agrupamientos (dendrograma): se elige dónde cortarlo."
 STEP_PREPROCESS = "Preprocesado"
 STEP_CHOOSE_K = "Elegir k"
 STEP_FINAL_MODEL = "Modelo final"
@@ -192,6 +197,18 @@ HELP_RANGE = (
     "Cuántos grupos (clusters) se comparan. Se ajusta un modelo para cada k del rango y se comparan "
     "con varios índices. El máximo es 8."
 )
+SWEEP_COV = "Forma de los clusters (covarianza)"
+HELP_COV = (
+    "Completa: cada cluster puede tener su propio tamaño, forma y orientación (lo más flexible). "
+    "Compartida: todos con la misma forma. Diagonal: sin correlaciones entre variables dentro del "
+    "cluster. Esférica: redondos, como k-means. El gráfico de BIC compara las cuatro."
+)
+SWEEP_LINK = "Tipo de enlace"
+HELP_LINK = (
+    "Cómo se mide la distancia entre dos grupos al unirlos. Ward: une los grupos que menos aumentan "
+    "la variabilidad interna (grupos compactos, el más usado). Promedio: distancia media entre sus "
+    "pacientes. Completo: la mayor distancia entre sus pacientes."
+)
 HELP_NINIT = (
     "k-means empieza desde puntos al azar; se repite este número de veces y se queda con la mejor "
     "solución. 20 es suficiente casi siempre."
@@ -208,6 +225,17 @@ BEST_K_SIL = "Silueta: k = {k}"
 BEST_K_CH = "Calinski-Harabasz: k = {k}"
 BEST_K_DB = "Davies-Bouldin: k = {k}"
 BEST_K_ELBOW = "Codo ≈ {k}"
+BEST_K_BIC = "BIC: k = {k}"
+BEST_K_HEIGHT = "Mayor salto del árbol: k = {k}"
+CHART_BIC = "BIC por k (menor es mejor)"
+CHART_DENDRO = "Dendrograma (clic para cortar)"
+AXIS_BIC = "BIC"
+AXIS_HEIGHT = "Altura de fusión"
+TIP_BIC = "k = {k} · BIC {v}"
+CUT_LABEL = "corte: k = {k}"
+COV_SHORT = {"full": "Completa", "tied": "Compartida", "diag": "Diagonal", "spherical": "Esférica"}
+CRITERION_HEAD = {"inercia": "Inercia", "bic": "BIC", "altura": "Altura de fusión"}
+BIC_BEST_COV = "Menor BIC de todos los tipos: covarianza {cov}, k = {k}."
 CHART_ELBOW = "Método del codo"
 CHART_SIL = "Silueta media por k"
 AXIS_K = "Número de clusters (k)"
@@ -263,6 +291,24 @@ TAB_SILHOUETTE = "Silueta"
 TAB_STABILITY = "Estabilidad"
 TAB_SENSITIVITY = "Sensibilidad a la imputación"
 TAB_DESCRIPTIVE = "Variables descriptivas"
+TAB_MEMBERSHIP = "Pertenencia"
+MEMBERSHIP_TITLE = "Probabilidad de pertenencia al cluster asignado"
+MEMBERSHIP_NOTE = (
+    "{n} pacientes tienen una probabilidad menor que {u}: están en la frontera entre dos perfiles "
+    "(media de todos: {m})."
+)
+MEMBERSHIP_SELECT = "Seleccionar los {n} de frontera en la tabla"
+MEMBERSHIP_SELECT_1 = "Seleccionar el paciente de frontera en la tabla"
+MEMBERSHIP_NOTE_1 = (
+    "1 paciente tiene una probabilidad menor que {u}: está en la frontera entre dos perfiles (media de todos: {m})."
+)
+AXIS_PATIENTS = "Pacientes"
+FINAL_K_HINTS = {
+    "kmeans": "También puedes elegir k haciendo clic en un punto del codo o de la silueta.",
+    "gmm": "También puedes elegir k haciendo clic en un punto del BIC o de la silueta.",
+    "jerarquico": "También puedes elegir k haciendo clic en el dendrograma (a la altura del corte) o en la silueta.",
+}
+AXIS_PROB = "Probabilidad máxima"
 PCA_TITLE = "Proyección en componentes principales"
 PCA_HINT = "Clic en un punto o arrastra un lazo para seleccionar esas filas en la tabla."
 HEATMAP_TITLE = "Perfiles de los clusters (medias en z)"
@@ -327,6 +373,8 @@ UNSAVED_CANCEL = "Cancelar"
 
 # Informe
 REPORT_TITLE = "Informe de clustering k-means"
+REPORT_TITLES = {"kmeans": "Informe de clustering k-means", "gmm": "Informe de mezclas gaussianas (GMM)",
+                 "jerarquico": "Informe de clustering jerárquico"}
 REPORT_COVER = "Archivo de datos: {fuente} · {n} filas × {cols} columnas · {n_model} filas en el modelo"
 REPORT_DATE = "Fecha: {fecha} · StatLab {version}"
 REPORT_PRIVACY = (
@@ -364,6 +412,9 @@ NO = "no"
 YES_B = "sí ({b} remuestras por k)"
 MISSING_KNN_LONG = "KNN, {k} vecinos"
 FIG_ELBOW = "Método del codo: inercia por número de clusters."
+FIG_BIC = "Criterio de información bayesiano (BIC) por número de componentes; en gris, otros tipos de covarianza."
+FIG_DENDRO = "Dendrograma (últimas fusiones); línea discontinua: corte en el número de grupos elegido."
+FIG_MEMBERSHIP = "Probabilidad de pertenencia al cluster asignado; en ámbar, pacientes de frontera."
 FIG_SIL_K = "Silueta media por k (barras: IC95 % bootstrap)."
 FIG_PCA = "Proyección en las dos primeras componentes principales; rombos: centroides."
 FIG_HEATMAP = "Perfiles de los clusters: medias estandarizadas (z) de cada variable del modelo."
@@ -404,4 +455,378 @@ EXPORT_NAMES = {
 EXPORT_WRITE_ERROR = (
     "No se ha podido escribir en «{path}». Comprueba que la carpeta existe, que tienes permiso y que el "
     "archivo no está abierto en otro programa."
+)
+
+# Lectura robusta (Excel)
+READ_HEADER_ROW = "La cabecera está en la fila {row}: se han ignorado las filas de encima."
+READ_TWO_HEADERS = "La cabecera ocupa dos filas (celdas combinadas): se han unido los nombres."
+READ_TRAILING = "Se han ignorado {n} filas al final (totales o notas)."
+READ_TRAILING_1 = "Se ha ignorado 1 fila al final (totales o notas)."
+
+# Fórmulas
+FORMULA_EMPTY = "Escribe una fórmula."
+FORMULA_CHAR = "Hay un carácter que no entiendo («{char}», posición {pos})."
+FORMULA_EXPECTED = "Falta «{what}» (posición {pos})."
+FORMULA_INCOMPLETE = "La fórmula está incompleta."
+FORMULA_UNEXPECTED = "No esperaba «{tok}» en la posición {pos}."
+FORMULA_UNKNOWN_FUNC = "No conozco la función «{name}»."
+FORMULA_NARGS = "La función {name} no lleva ese número de argumentos (se separan con «;»)."
+FORMULA_NO_COLUMN = "No hay ninguna columna «{col}». Si el nombre tiene espacios, escríbelo entre corchetes: [{col}]."
+FORMULA_NOT_NUMBER = "Hay texto donde se esperaba un número. Revisa el tipo de las columnas de la fórmula."
+FORMULA_NOT_DATE = "Las funciones AÑOS, MESES y DIAS necesitan columnas de tipo fecha."
+FORMULA_DATE_ARITH = "Para restar fechas usa AÑOS(inicio; fin), MESES(…) o DIAS(…)."
+FORMULA_TEXT_ORDER = "Los textos solo se pueden comparar con = o <>."
+
+# Receta de preparación
+PREP_TYPE_NAMES = {
+    "numerica": "numérica", "categorica": "categórica", "ordinal": "ordinal", "fecha": "fecha", "texto": "texto libre",
+}
+PREP_DATE_FORMATS = {"dma": "día/mes/año", "mda": "mes/día/año", "amd": "año-mes-día"}
+PREP_NO_COLUMN = "La columna «{col}» ya no existe (¿se ha renombrado o quitado en un paso anterior?)."
+PREP_BAD_TYPE = "Tipo de columna desconocido: {tipo}."
+PREP_BAD_STEP = "Paso desconocido: {tipo}."
+PREP_STEP_FAILED = "No se ha podido aplicar este paso ({detail})."
+PREP_UNREADABLE = "{n} valores no se han podido leer y quedan como perdidos."
+PREP_CUT_LABELS = "Hacen falta {n} etiquetas, una por intervalo."
+PREP_ALL = "Todos"
+PREP_ALL_COLUMNS = "todas las columnas"
+PREP_NO_NAME = "Escribe el nombre de la nueva columna."
+PREP_NAME_TAKEN = "Ya hay una columna «{col}»."
+PREP_NO_REASON = "Escribe el motivo de la exclusión: aparecerá en el diagrama de flujo de pacientes."
+PREP_EXCLUDE_NA = "En {n} filas falta el dato de la condición: no se excluyen."
+PREP_DUPLICATE_REASON = "Duplicado"
+PREP_NEGATIVE_TIME = "{n} tiempos negativos: revisa el orden de las fechas."
+PREP_NO_FOLLOWUP = "En {n} filas falta la fecha de inicio o la de final: tiempo perdido."
+PREP_DESC_TYPE = "«{col}» como {tipo}"
+PREP_DESC_MISSING = "Perdidos en {cols}: {que}"
+PREP_DESC_RECODE = "Recodificar «{col}» ({n} valores)"
+PREP_DESC_UNITS = "«{col}» × {factor}"
+PREP_DESC_CUT = "Categorizar «{col}» → {dest}"
+PREP_DESC_DATES = "{dest} = tiempo de {a} a {b}"
+PREP_DESC_FOLLOWUP = "Seguimiento: {t} y {e}"
+PREP_DESC_EXCLUDE = "Excluir: {motivo} ({cond})"
+PREP_DESC_DUPS = "Excluir duplicados ({cols})"
+PREP_DESC_DROP = "Quitar {cols}"
+PREP_DESC_RENAME = "Renombrar «{col}» → «{nombre}»"
+
+# Revisión de calidad
+Q_DUP_ROWS = "Filas duplicadas"
+Q_DUP_ROWS_DETAIL = "{n} filas son copia exacta de otra anterior."
+Q_DUP_ID = "Identificador repetido en «{col}»"
+Q_DUP_ID_DETAIL = "{n} filas comparten identificador pero tienen datos distintos: revísalas a mano."
+Q_EMPTY = "«{col}» está vacía"
+Q_EMPTY_DETAIL = "No tiene ningún valor."
+Q_DATE = "«{col}» parece una fecha"
+Q_DATE_DETAIL = "Formato detectado: {fmt}."
+Q_DATE_AMBIGUOUS = "No se distingue si es día/mes o mes/día (ningún valor pasa de 12): confirma el formato."
+Q_NUMTEXT = "«{col}» tiene números guardados como texto"
+Q_NUMTEXT_DETAIL = "Al convertirla, {n} valores no se podrían leer."
+Q_NUMTEXT_DETAIL_OK = "Todos los valores se pueden convertir a número."
+Q_NUMTEXT_LIMITS = "{n} valores llevan «<» o «>» (límite de detección)."
+Q_CATS = "«{col}»: la misma categoría escrita de varias formas"
+Q_CATS_DETAIL = "Por ejemplo {ej} (mayúsculas, espacios o tildes)."
+Q_MISSING_CODE = "«{col}»: ¿{code} significa «perdido»?"
+Q_MISSING_CODE_DETAIL = "{n} filas valen {code}, muy lejos del resto de valores."
+Q_LIMITS = "«{col}»: valores fuera de los límites del diccionario"
+Q_LIMITS_DETAIL = "{n} valores fuera de los límites plausibles."
+Q_UNITS = "«{col}»: parece haber unidades mezcladas"
+Q_UNITS_DETAIL = "{n} valores son unas {factor} veces mayores que el resto (¿g/L en vez de g/dL?)."
+Q_MOSTLY_EMPTY = "«{col}» está casi vacía"
+Q_MOSTLY_EMPTY_DETAIL = "Le falta el {p} % de los valores."
+Q_CONSTANT = "«{col}» casi no varía"
+Q_CONSTANT_DETAIL = "El {p} % de los valores es «{v}»."
+
+# Diccionario
+DICT_INVALID = "No he podido leer el diccionario. Debe ser un CSV o Excel con una fila por variable."
+DICT_NO_VARIABLE = "El diccionario necesita una columna «variable» con el nombre de cada columna de los datos."
+DICT_BAD_NUMBER = "«{value}» no es un número válido como límite."
+
+# Mis fórmulas
+MYF_INVALID = "El archivo no es una biblioteca de «Mis fórmulas» de StatLab."
+MYF_NEWER = "La biblioteca es de una versión más reciente de StatLab."
+MYF_UNMAPPED = "Indica qué columna corresponde a: {cols}."
+Q_DICT_MISSING = "«{col}»: códigos de perdido del diccionario"
+Q_DICT_MISSING_DETAIL = "{n} filas tienen un código que el diccionario define como perdido ({codes})."
+
+# Modo «Preparar datos»
+MODE_PREPARE = "1 · Preparar datos"
+MODE_ANALYZE = "2 · Analizar"
+PREP_SIDEBAR_TITLE = "Preparar datos"
+PREP_FILE = "Archivo"
+PREP_FILE_SUMMARY = "{name} · {rows} × {cols}"
+PREP_FILE_SHEET = "Hoja «{sheet}» · cabecera en la fila {row}"
+PREP_ORIGINAL_SAFE = "El archivo original no se modifica."
+PREP_ADJUST = "Ajustar"
+PREP_ADJUST_HIDE = "Ocultar"
+PREP_SHEET = "Hoja"
+PREP_HEADER_ROW = "Cabecera en la fila"
+PREP_TWO_HEADER_ROWS = "Cabecera de dos filas"
+PREP_DROP_TRAILING = "Ignorar totales al final"
+PREP_QUALITY = "Revisión de calidad"
+PREP_QUALITY_OK = "✓ Sin problemas detectados"
+PREP_QUALITY_SUMMARY = "{n} avisos"
+PREP_QUALITY_SUMMARY_1 = "1 aviso"
+PREP_QUALITY_GRAVES = "{n} importantes"
+PREP_QUALITY_GRAVES_1 = "1 importante"
+PREP_SHOW_ALL = "Mostrar {n} más"
+PREP_FIX = "Corregir"
+PREP_SHOW_ROWS = "Ver {n} filas"
+PREP_IGNORE = "Ignorar"
+PREP_RECIPE = "Receta"
+PREP_RECIPE_EMPTY = "Aún no hay cambios. Cada corrección o paso nuevo se añade aquí."
+PREP_RECIPE_ERRORS = "{n} con error"
+PREP_STEP_ACTIONS = "Acciones del paso"
+PREP_DISABLE = "Desactivar"
+PREP_ENABLE = "Activar"
+PREP_ADD_STEP = "Añadir paso"
+MYF_MENU = "Desde Mis fórmulas…"
+PREP_STEP_OFF = "Desactivado"
+PREP_MOVE_UP = "Subir"
+PREP_MOVE_DOWN = "Bajar"
+PREP_EDIT = "Editar"
+PREP_DELETE = "Borrar"
+PREP_CONTINUE = "Continuar al análisis →"
+PREP_ERROR_TITLE = "No se ha podido aplicar el cambio"
+PREP_PREVIEW = "Vista previa"
+PREP_PREVIEW_CELLS = "{n} celdas cambian"
+PREP_PREVIEW_CELLS_1 = "1 celda cambia"
+PREP_PREVIEW_ROWS = "{n} filas excluidas"
+PREP_PREVIEW_ROWS_1 = "1 fila excluida"
+PREP_PREVIEW_NEWCOLS = "columna nueva {cols}"
+PREP_PREVIEW_NOTHING = "Este paso no cambia nada en los datos actuales."
+PREP_BEFORE = "antes"
+PREP_AFTER = "después"
+PREP_ROW = "Fila"
+PREP_STATUS = "Estado"
+PREP_EXCLUDED = "Excluida"
+PREP_ADD = "Añadir a la receta"
+PREP_SAVE = "Guardar cambios"
+PREP_STEP_TITLES = {
+    "tipo": "Tipo de columna",
+    "perdidos": "Valores perdidos",
+    "recodificar": "Recodificar categorías",
+    "unidades": "Convertir unidades",
+    "categorizar": "Categorizar por cortes",
+    "calcular": "Nueva variable (calculadora)",
+    "fechas": "Tiempo entre dos fechas",
+    "seguimiento": "Tiempo de seguimiento y evento",
+    "excluir": "Excluir filas",
+    "duplicados": "Excluir duplicados",
+    "renombrar": "Renombrar columna",
+    "quitar": "Quitar columnas",
+}
+PREP_STEP_INTROS = {
+    "tipo": "Fija cómo se lee una columna: número (también «<0,5», «12,3 mg/dL»), categoría, ordinal, fecha o texto.",
+    "perdidos": "Convierte en perdidos los códigos que no son datos (999, -9…) o los valores que cumplan "
+                "una condición.",
+    "recodificar": "Une o renombra categorías: escribe el valor nuevo de cada una. Deja la casilla vacía para "
+                   "convertirla en perdido.",
+    "unidades": "Multiplica una columna por un factor, en todas las filas o solo en las que cumplan una condición "
+                "(p. ej. Hb en g/L → g/dL: factor 0,1 si hb > 40).",
+    "categorizar": "Crea una variable por intervalos. «18,5; 25; 30» da: < 18,5 · 18,5–25 · 25–30 · ≥ 30.",
+    "calcular": "Crea una variable con una fórmula, como en Excel: coma decimal y «;» entre argumentos. Los nombres "
+                "con espacios van entre corchetes: [fecha nacimiento].",
+    "fechas": "Diferencia entre dos columnas de fecha (por ejemplo, edad a partir de la fecha de nacimiento).",
+    "seguimiento": "Tiempo = fecha del evento (o, si no lo hubo, del último contacto) − fecha de inicio. "
+                   "Evento = 1 si hay fecha del evento; 0 si no (censurado).",
+    "excluir": "Las filas que cumplan la condición no entran en el análisis. No se borran: aparecen tachadas y "
+               "con su motivo en el diagrama de flujo de pacientes.",
+    "duplicados": "Excluye las filas repetidas (se conserva la primera). Sin columnas elegidas, compara la "
+                  "fila entera.",
+    "renombrar": "Cambia el nombre de una columna en la tabla de análisis.",
+    "quitar": "Quita columnas de la tabla de análisis (siguen en el archivo original).",
+}
+F_COLUMN = "Columna"
+F_COLUMNS = "Columnas"
+F_TYPE = "Tipo"
+F_DATE_FORMAT = "Formato de fecha"
+F_LIMITS = "Valores con «<» o «>»"
+F_LIMITS_VALUE = "Usar el número (<0,5 → 0,5)"
+F_LIMITS_NA = "Dejarlos como perdidos"
+F_ORDER = "Orden de las categorías"
+F_ORDER_HELP = "De menor a mayor, separadas por «;». Ejemplo: Leve; Moderada; Grave"
+F_MISSING_VALUES = "Códigos de perdido"
+F_MISSING_HELP = "Separados por «;». Ejemplo: 999; -9"
+F_CONDITION_OPTIONAL = "Condición (opcional)"
+F_CONDITION_HELP = "Ejemplo: hb > 25"
+F_RECODE = "Valores"
+F_RECODE_HELP = "Escribe el valor nuevo en la tercera columna."
+F_RECODE_OLD = "Valor actual"
+F_RECODE_N = "n"
+F_RECODE_NEW = "Valor nuevo"
+F_RECODE_NOTHING = "No has cambiado ningún valor."
+F_TARGET = "Nombre de la nueva columna"
+F_TARGET_OPTIONAL = "Guardar en otra columna (opcional)"
+F_FACTOR = "Factor"
+F_FACTOR_HELP = "Ejemplos: 0,1 (g/L → g/dL) · 88,4 (creatinina mg/dL → µmol/L)"
+F_UNITS_CONDITION_HELP = "Solo en las filas que la cumplan. Ejemplo: hb > 40"
+F_CUT_MODE = "Cómo cortar"
+F_CUT_POINTS = "Por cortes que eliges"
+F_CUT_QUANTILES = "Por cuantiles (grupos de igual tamaño)"
+F_CUTS = "Cortes"
+F_CUTS_HELP = "Separados por «;». Cada intervalo incluye su límite inferior: [25, 30)."
+F_QUANTILES = "Número de grupos"
+F_LABELS_OPTIONAL = "Etiquetas (opcional)"
+F_FORMULA = "Fórmula"
+F_FORMULA_HELP = (
+    "Operaciones + − * / ^ · comparaciones = <> < > <= >= · SI(condición; sí; no) · Y(…) · O(…) · MIN · MAX · "
+    "LN · EXP · RAIZ · REDONDEAR · ESNA · AÑOS(inicio; fin) · MESES · DIAS"
+)
+F_SAVE_MYF = "Guardar también en «Mis fórmulas»"
+F_INSERT_COLUMN = "Insertar columna…"
+F_INSERT_FUNCTION = "Insertar función…"
+F_DATE_START = "Fecha inicial"
+F_DATE_END = "Fecha final"
+F_UNIT = "Unidad"
+F_NO_DATE_COLUMNS = "No hay columnas de fecha: fija antes el tipo «fecha»"
+F_FU_START = "Fecha de inicio (inclusión)"
+F_FU_EVENT = "Fecha del evento"
+F_FU_LAST = "Fecha del último contacto"
+F_FU_TIME_NAME = "Nombre de la columna de tiempo"
+F_FU_EVENT_NAME = "Nombre de la columna de evento"
+F_EXCLUDE_IF = "Excluir si"
+F_EXCLUDE_HELP = "Ejemplos: edad < 18 · ESNA(hb) · Y(sexo = \"M\"; embarazo = \"Sí\")"
+F_REASON = "Motivo"
+F_REASON_HELP = "Aparece en el diagrama de flujo de pacientes. Ejemplo: Menores de 18 años"
+F_DUP_COLUMNS = "Comparar por"
+F_DUP_HELP = "Por ejemplo, el identificador. Sin ninguna elegida, compara la fila entera."
+F_NEW_NAME = "Nombre nuevo"
+F_REQUIRED = "Falta «{field}»."
+F_BAD_NUMBER = "«{field}» debe ser un número."
+F_BAD_NUMBERS = "Los cortes deben ser números separados por «;»."
+F_MISSING_NOTHING = "Indica los códigos de perdido o una condición."
+UNIT_YEARS = "años"
+UNIT_MONTHS = "meses"
+UNIT_DAYS = "días"
+
+# Diagrama de flujo de pacientes
+FLOW_TITLE = "Diagrama de flujo de pacientes"
+FLOW_NOTE = "Se actualiza con las exclusiones de la receta y las que hagas en la tabla. Se incluye en el informe."
+FLOW_TOTAL = "Registros en el archivo\nn = {n}"
+FLOW_FINAL = "Analizados\nn = {n}"
+FLOW_EXCLUDED = "{motivo}\nn = {n}"
+FLOW_MANUAL = "Excluidos a mano en la tabla"
+FLOW_OUTSIDE_SELECTION = "Fuera de «Analizar solo estas filas»"
+FLOW_EXPORT = "Exportar figura…"
+FLOW_FILTER = "Imagen PNG (*.png);;Imagen SVG (*.svg)"
+REPORT_FLOW = "Pacientes"
+REPORT_FLOW_CAPTION = "Diagrama de flujo de pacientes."
+REPORT_PREP = "Preparación de los datos"
+REPORT_PREP_HEAD = ("Paso", "Descripción")
+
+# Diccionario (interfaz)
+DICT_TITLE = "Diccionario de variables"
+DICT_EDIT = "Editar diccionario…"
+DICT_SUMMARY = "{n} de {total} variables descritas"
+DICT_INTRO = (
+    "Etiqueta y unidad se usan en tablas e informes. Los límites plausibles y los códigos de perdido "
+    "alimentan la revisión de calidad. Categorías: 1=Hombre|2=Mujer. Varios códigos: 999|-9."
+)
+DICT_COLS = {
+    "variable": "Variable", "etiqueta": "Etiqueta", "unidad": "Unidad", "descripcion": "Descripción",
+    "minimo": "Mínimo", "maximo": "Máximo", "perdidos": "Códigos de perdido", "categorias": "Categorías",
+}
+DICT_IMPORT = "Importar…"
+DICT_EXPORT = "Exportar…"
+DICT_FILTER = "Excel (*.xlsx);;CSV (*.csv)"
+DICT_IMPORT_UNKNOWN = "{n} variables del archivo no están en la tabla y no se han importado."
+
+# Mis fórmulas (interfaz)
+MYF_TITLE = "Mis fórmulas"
+MYF_EMPTY = (
+    "Aún no hay fórmulas guardadas. Al crear una variable con la calculadora, marca «Guardar también en "
+    "Mis fórmulas» para reutilizarla en otros archivos."
+)
+MYF_INPUT = "Entrada «{name}»"
+MYF_APPLY = "Añadir a la receta"
+MYF_DELETE = "Borrar"
+MYF_IMPORT = "Importar…"
+MYF_EXPORT = "Exportar…"
+MYF_FILTER = "Mis fórmulas de StatLab (*.json)"
+MYF_IMPORTED = "{n} fórmulas nuevas y {m} sustituidas."
+ROW_EXCLUDED_BY_RECIPE = "Excluida por la receta: {motivo}"
+READ_OTHER_SHEET = "Los datos se han leído de la hoja «{sheet}» (las anteriores no tienen una tabla)."
+
+Q_SHORT = {
+    "duplicados": "Filas duplicadas",
+    "id_duplicado": "identificador repetido",
+    "vacia": "columna vacía",
+    "fecha_texto": "fecha como texto",
+    "numero_texto": "números como texto",
+    "categorias": "valores escritos distinto",
+    "codigo_perdido": "¿código de perdido?",
+    "fuera_limites": "valores fuera de límites",
+    "unidades": "unidades mezcladas",
+    "casi_vacia": "casi vacía",
+    "casi_constante": "casi no varía",
+}
+
+# Varios análisis en una sesión
+NEW_ANALYSIS = "+ Nuevo análisis"
+ANALYSIS_SHORT = {"kmeans": "k-means", "gmm": "GMM", "jerarquico": "Jerárquico"}
+ANALYSIS_TAB_K = "{name} · k = {k}"
+CLOSE_ANALYSIS_TITLE = "Cerrar el análisis"
+CLOSE_ANALYSIS_TEXT = "¿Cerrar «{name}»? Se perderán sus resultados (los datos y los demás análisis no cambian)."
+RENAME_ANALYSIS_TITLE = "Nombre del análisis"
+RENAME_ANALYSIS_TEXT = "Nombre de la pestaña (vacío = automático):"
+
+# Comparación de soluciones
+ARI_EXCELLENT = "Acuerdo excelente"
+ARI_GOOD = "Acuerdo bueno"
+ARI_MODERATE = "Acuerdo moderado"
+ARI_POOR = "Acuerdo escaso"
+ARI_CHANCE = "No mejor que el azar"
+CMP_CANNOT_MATCH = (
+    "No se puede saber qué paciente es cuál: una de las soluciones no tiene identificador y no vienen del "
+    "mismo archivo. Marca una columna como identificador (rol I) en los dos análisis."
+)
+CMP_DUP_IDS = "Hay identificadores repetidos en «{name}»: no se puede emparejar a los pacientes."
+CMP_TOO_FEW = "Solo hay {n} pacientes en común: no se puede comparar."
+CMP_CSV_EMPTY = "El archivo no tiene filas con identificador y cluster."
+CMP_NO_SOLUTIONS = "La sesión «{name}» no tiene ningún modelo final que importar."
+CMP_TITLE = "Comparar soluciones"
+CMP_TAB = "Comparar soluciones"
+CMP_SOLUTIONS = "Soluciones"
+CMP_SOLUTION = "Solución {x}"
+CMP_SWAP = "Intercambiar A y B"
+CMP_IMPORTED = "Soluciones importadas"
+CMP_IMPORT_HINT = (
+    "De otra sesión .statlab o de un CSV con las columnas id y cluster (por ejemplo, de R o SPSS). "
+    "Se guardan como copia, con su procedencia."
+)
+CMP_FROM_SESSION = "Sesión…"
+CMP_FROM_CSV = "CSV…"
+CMP_REMOVE = "Quitar la importada"
+CMP_CHOOSE = "¿Qué solución quieres importar?"
+CMP_EMPTY = (
+    "Para comparar hacen falta dos soluciones: ajusta el modelo final en dos análisis (por ejemplo, "
+    "k-means y GMM) o importa una solución."
+)
+CMP_SAME = "Elige dos soluciones distintas."
+KPI_CMP_ARI = "Índice de Rand ajustado (ARI)"
+KPI_CMP_SAME = "Pacientes en el mismo grupo"
+KPI_CMP_SAME_NOTE = "Tras emparejar los clusters de A y B"
+KPI_CMP_DIFF_K = "A y B tienen distinto número de grupos: mira el flujo"
+KPI_CMP_DISC = "Cambian de grupo"
+KPI_CMP_DISC_NOTE = "de {n} pacientes comparados"
+CMP_SELECT_DISC = "Seleccionar los que cambian en la tabla de A"
+CMP_MATCHED_BY_ID = "Pacientes emparejados por su identificador."
+CMP_MATCHED_BY_ROW = "Pacientes emparejados por fila (mismo archivo, sin identificador)."
+CMP_PARTIAL = "Se comparan los {n} pacientes comunes: {a} solo están en A y {b} solo en B."
+CMP_TAB_FLOW = "Flujo"
+CMP_TAB_CROSSTAB = "Tabla cruzada"
+CMP_TAB_DISC = "Discordantes"
+CMP_SANKEY_HINT = (
+    "Cada banda son los pacientes que pasan de un cluster de A a uno de B. Clic: seleccionarlos en la tabla de A."
+)
+CMP_CROSSTAB_HINT = (
+    "Pacientes de cada cluster de A (filas) según su cluster en B (columnas); entre paréntesis, % de la fila. "
+    "En azul, los clusters emparejados."
+)
+CMP_BAND_TIP = "{a} → {b}: {n} pacientes"
+CMP_HEAD_ID = "Identificador"
+CMP_HEAD_PROB = "Probabilidad (GMM)"
+CMP_PROB_NOTE = (
+    "Probabilidad de pertenencia media en GMM: {d} en los que cambian de grupo frente a {c} en el resto. "
+    "Si es más baja, son pacientes de frontera entre dos perfiles."
 )

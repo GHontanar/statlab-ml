@@ -13,12 +13,13 @@ from typing import Any
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from statlab import strings_es as S
-from statlab.core import io as sio
 from statlab.core import session as ses
 from statlab.core.dataset import Cambio, Dataset, Rol
 from statlab.core.errors import ErrorUsuario
 from statlab.core.estado import EstadoSesion
 from statlab.core.flow import EstadoPaso
+from statlab.core.prep.preparacion import Preparacion, de_ejemplo
+from statlab.core.prep.receta import Preparado
 from statlab.modules.base import AnalysisModule
 from statlab.workers import Tarea, cancelar_todo, lanzar
 
@@ -37,6 +38,10 @@ class SessionController(QObject):
     dirty_changed = Signal(bool)  # hay cambios sin guardar
     focus_requested = Signal(str)  # llevar la vista a un paso de la barra lateral
     rows_selection_requested = Signal(list)  # seleccionar estas filas en la tabla (desde un gráfico)
+    prep_changed = Signal()  # opciones de lectura, receta o diccionario
+    # El usuario ha cambiado la preparación desde este análisis; hay que avisar a los demás.
+    # True: han cambiado los datos (receta, lectura); False: solo diccionario o avisos ignorados.
+    prep_edited = Signal(bool)
 
     def __init__(self, module: AnalysisModule, parent: QObject | None = None):
         super().__init__(parent)
@@ -54,6 +59,10 @@ class SessionController(QObject):
         self.step_updated.connect(self._mark_dirty)
         self._turnos: dict[str, int] = {}
         self._timers: dict[str, QTimer] = {}
+        self.preparado: Preparado | None = None  # último resultado de aplicar la receta
+        # Si el análisis forma parte de una sesión con varios, quién guarda la sesión entera
+        self.guardar_proyecto = None
+        self.prep_changed.connect(self._mark_dirty)
 
     @property
     def dataset(self) -> Dataset | None:
@@ -68,28 +77,34 @@ class SessionController(QObject):
         timer = self._timers.get(paso)
         return paso in self._tareas or (timer is not None and timer.isActive())
 
+    @property
+    def prep(self) -> Preparacion | None:
+        return self.estado.preparacion
+
     # --- Carga ----------------------------------------------------------
     def load_path(self, path: str | Path) -> None:
         """Lanza ErrorUsuario con un mensaje legible si no se puede leer."""
         path = Path(path)
-        try:
-            df = sio.read_path(path)
-        except ErrorUsuario:
-            raise
-        except Exception as e:  # pandas/openpyxl lanzan muchos tipos distintos
-            raise ErrorUsuario(S.READ_ERROR_GENERIC) from e
-        self._set(Dataset(df, fuente=path.name))
+        raw = path.read_bytes()
+        self._set_prep(_leyendo(lambda: Preparacion.desde_archivo(path.name, raw)))
 
     def load_example(self) -> None:
-        self._set(Dataset(sio.read_example(), fuente=sio.EXAMPLE_NAME))
+        self._set_prep(de_ejemplo())
 
-    def _set(self, dataset: Dataset) -> None:
+    def _set_prep(self, prep: Preparacion) -> None:
+        ds, self.preparado = prep.dataset()
+        self._set(ds, prep)
+        self.prep_changed.emit()
+        self._set_dirty(False)
+
+    def _set(self, dataset: Dataset, prep: Preparacion | None = None) -> None:
         for paso in list(self._tareas):
             self.cancel(paso)
         self.estado = self.module.crear_estado()
         self._reabiertos.clear()
         self.session_path = None
         self.estado.dataset = dataset
+        self.estado.preparacion = prep
         self.flujo.completar("datos")
         self.dataset_changed.emit()
         self.flow_changed.emit()
@@ -106,29 +121,110 @@ class SessionController(QObject):
 
     def save_session(self, path: str | Path) -> Path:
         """Guarda todo en un archivo .statlab. Lanza ErrorUsuario/OSError si no se puede."""
-        guardado = ses.guardar(path, self.estado, self.module.id)
-        self.session_path = guardado
-        self._set_dirty(False)
+        if self.guardar_proyecto is not None:
+            guardado = self.guardar_proyecto(path)
+        else:
+            guardado = ses.guardar(path, self.estado, self.module.id)
+        self.saved_as(guardado)
         self.message.emit(S.SESSION_SAVED.format(name=guardado.name))
         return guardado
 
+    def saved_as(self, path: Path) -> None:
+        self.session_path = path
+        self._set_dirty(False)
+
     def open_session(self, path: str | Path) -> None:
-        """Restaura una sesión sin recalcular nada."""
-        estado = ses.abrir(path, self.module.crear_estado, self.module.id)
+        """Restaura una sesión de un solo análisis sin recalcular nada."""
+        self.restore(ses.abrir(path, self.module.crear_estado, self.module.id), Path(path))
+
+    def restore(self, estado: EstadoSesion, path: Path | None) -> None:
+        """Muestra un estado ya leído de un archivo, sin recalcular nada."""
         for paso in list(self._tareas):
             self.cancel(paso)
         self._restoring = True
         try:
             self.estado = estado
             self._reabiertos.clear()
-            self.session_path = Path(path)
+            self.session_path = path
+            self.preparado = estado.preparacion.aplicar() if estado.preparacion else None
             self.dataset_changed.emit()
             for paso in self.flujo.ids:
                 self.step_updated.emit(paso)
             self.flow_changed.emit()
+            self.prep_changed.emit()
         finally:
             self._restoring = False
         self._set_dirty(False)
+
+    # --- Preparación ----------------------------------------------------
+    def change_preparation(self, cambio) -> None:
+        """Aplica `cambio(prep)` (que modifica opciones, receta o diccionario) y rehace la
+        tabla de análisis. Si `cambio` lanza ErrorUsuario no se toca nada."""
+        prep = self.prep
+        if prep is None:
+            return
+        antes = prep.to_dict()
+        try:
+            _leyendo(lambda: cambio(prep))
+            ds, preparado = _leyendo(lambda: prep.dataset(self.dataset))
+        except ErrorUsuario:
+            r = Preparacion.from_dict(antes, prep.raw)
+            prep.opciones, prep.receta = r.opciones, r.receta
+            prep.diccionario, prep.ignorados = r.diccionario, r.ignorados
+            raise
+        self._rebuild(ds, preparado)
+        self.prep_edited.emit(True)
+
+    def sync_preparation(self) -> None:
+        """Otro análisis de la sesión ha cambiado la preparación (compartida): rehacer esta tabla."""
+        if self.prep is None or self.dataset is None:
+            return
+        try:
+            ds, preparado = _leyendo(lambda: self.prep.dataset(self.dataset))
+        except ErrorUsuario:
+            return
+        self._rebuild(ds, preparado)
+
+    def adopt(self, prep: Preparacion, dataset: Dataset) -> None:
+        """Análisis nuevo dentro de una sesión: misma preparación y una tabla ya hecha."""
+        self.preparado = prep.aplicar()
+        self._set(dataset, prep)
+        self.prep_changed.emit()
+
+    def _rebuild(self, ds: Dataset, preparado: Preparado) -> None:
+        for paso in list(self._tareas):
+            self.cancel(paso)
+        filas_iguales = self.dataset is not None and ds.n_filas == self.dataset.n_filas
+        self.estado.dataset, self.preparado = ds, preparado
+        if not filas_iguales:  # los resultados se refieren a otras filas: no se pueden conservar
+            self.estado.resultados.clear()
+            self.flujo.reiniciar()
+            self.flujo.completar("datos")
+            self._reabiertos.clear()
+        self.dataset_changed.emit()
+        self.prep_changed.emit()
+        if filas_iguales:
+            self.inputs_changed("variables")
+        else:
+            self.flow_changed.emit()
+
+    def change_dictionary(self, cambio) -> None:
+        """El diccionario no cambia los datos (salvo que se apliquen sus propuestas)."""
+        if self.prep is None:
+            return
+        cambio(self.prep.diccionario)
+        self.prep_changed.emit()
+        self.prep_edited.emit(False)
+
+    def ignore_problem(self, clave: str) -> None:
+        if self.prep is not None:
+            self.prep.ignorados.add(clave)
+            self.prep_changed.emit()
+            self.prep_edited.emit(False)
+
+    def notify_preparation(self) -> None:
+        """La preparación compartida ha cambiado sin afectar a los datos (diccionario, avisos ignorados)."""
+        self.prep_changed.emit()
 
     # --- Columnas -------------------------------------------------------
     def set_role(self, cols: list[str], rol: Rol | None) -> Cambio:
@@ -382,3 +478,14 @@ class SessionController(QObject):
         self.flow_changed.emit()
         if not self.module.paso(paso).automatico:  # la vista previa ya muestra su error en la tarjeta
             self.message.emit(self.estado.resultados[paso]["error"])
+
+
+def _leyendo(fn):
+    """Ejecuta una lectura o una preparación y convierte cualquier fallo inesperado de
+    pandas/openpyxl en un mensaje legible."""
+    try:
+        return fn()
+    except ErrorUsuario:
+        raise
+    except Exception as e:  # pandas/openpyxl lanzan muchos tipos distintos
+        raise ErrorUsuario(S.READ_ERROR_GENERIC) from e

@@ -17,16 +17,23 @@ CRITERIO = {"tamanos": [109, 76, 55], "silueta_2": 0.557}
 
 
 def _pipeline(salida: Path) -> list[str]:
-    from statlab.core import io as sio
     from statlab.core import session as ses
-    from statlab.core.dataset import Dataset, Rol
+    from statlab.core.dataset import Rol
+    from statlab.core.prep.preparacion import de_ejemplo
+    from statlab.core.prep.receta import Paso
     from statlab.core.report import exports as ex
     from statlab.modules.kmeans.module import KMeansModule, ajustar, barrer, preprocesar
 
     log = []
     mod = KMeansModule()
     e = mod.crear_estado()
-    e.dataset = Dataset(sio.read_example(), fuente=sio.EXAMPLE_NAME)
+    # Preparación: una variable calculada (no entra en el modelo, así que no cambia el criterio)
+    e.preparacion = de_ejemplo()
+    e.preparacion.receta.añadir(Paso("calcular", {"destino": "hb_vcm", "formula": "SI(vcm > 0; hb / vcm)"}))
+    e.preparacion.diccionario.entrada("hb").etiqueta = "Hemoglobina"
+    e.dataset, preparado = e.preparacion.dataset()
+    assert not preparado.errores and "hb_vcm" in e.dataset.columnas
+    log.append("preparación: ok")
     e.dataset.asignar_rol(["hb", "vcm", "plaquetas", "neutrofilos", "hbf", "ferritina"], Rol.MODELO)
     e.dataset.alternar_log(["ferritina"])
     e.dataset.asignar_rol(["edad", "sexo"], Rol.DESCRIPTIVA)
@@ -40,6 +47,17 @@ def _pipeline(salida: Path) -> list[str]:
     assert final["tamanos"] == CRITERIO["tamanos"], final["tamanos"]
     e.resultados["modelo_final"] = final
     log.append("análisis: ok (109/76/55)")
+    # GMM, jerárquico y comparación (scikit-learn mixture, SciPy hierarchy y optimize en el paquete)
+    from statlab.core import clustering as clu
+    from statlab.core import comparacion as cmp
+
+    X = e.resultados["preprocesado"]["_preparado"].X
+    gmm = clu.algoritmo("gmm").ajustar(X, 3, {"covarianza": "diag", "n_init": 2}, 1)
+    jer = clu.algoritmo("jerarquico").ajustar(X, 3, {"enlace": "ward"}, 0)
+    a = cmp.Solucion("GMM", gmm.labels.tolist(), list(range(len(X))), huella="x")
+    b = cmp.Solucion("Jerárquico", jer.labels.tolist(), list(range(len(X))), huella="x")
+    assert 0 <= cmp.comparar(a, b, B=20)["ari"] <= 1
+    log.append("GMM, jerárquico y comparación: ok")
     files = ex.escribir("todo", mod.exportar(e), salida / "exportes", base="selftest")
     log.append(f"exportes: {len(files)} archivos")
     path = ses.guardar(salida / "sesion.statlab", e, mod.id)

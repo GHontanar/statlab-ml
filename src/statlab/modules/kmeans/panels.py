@@ -23,9 +23,9 @@ from statlab.core import fmt
 from statlab.modules.kmeans.module import k_elegido
 from statlab.ui import clusters as cl
 from statlab.ui import theme
-from statlab.ui.charts.clusters import BootHistogram, JaccardChart, PCAChart, SilhouetteBars
+from statlab.ui.charts.clusters import BootHistogram, JaccardChart, PCAChart, ProbHistogram, SilhouetteBars
 from statlab.ui.charts.heatmap import Heatmap
-from statlab.ui.charts.sweep import KChart, elbow_chart, silhouette_chart
+from statlab.ui.charts.sweep import KChart, criterion_chart, silhouette_chart
 from statlab.ui.session import SessionController
 from statlab.ui.widgets.flow_layout import FlowLayout
 from statlab.ui.widgets.kpi import KpiCard
@@ -52,7 +52,11 @@ def index_table(r: dict) -> QTableWidget:
     table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
     table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
     table.setObjectName("IndexTable")
-    table.setHorizontalHeaderLabels(S.INDEX_TABLE_HEAD)
+    criterio = r.get("criterio", {"id": "inercia", "valores": r.get("inercia")})
+    head = list(S.INDEX_TABLE_HEAD)
+    head[1] = S.CRITERION_HEAD[criterio["id"]]
+    table.setHorizontalHeaderLabels(head)
+    decimales = {"inercia": 1, "bic": 0, "altura": 2}[criterio["id"]]
     table.verticalHeader().hide()
     table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
     table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
@@ -65,7 +69,7 @@ def index_table(r: dict) -> QTableWidget:
     bold.setWeight(QFont.Weight.Bold)
     for i, k in enumerate(r["ks"]):
         ic = (f"{fmt.num(boot['ic_inf'][i], 3)} – {fmt.num(boot['ic_sup'][i], 3)}" if boot else "—")
-        cells = [str(k), fmt.num(r["inercia"][i], 1), fmt.num(r["silueta"][i], 3), ic,
+        cells = [str(k), fmt.num(criterio["valores"][i], decimales), fmt.num(r["silueta"][i], 3), ic,
                  fmt.num(r["ch"][i], 1), fmt.num(r["db"][i], 3), str(r["tam_min"][i])]
         for j, text in enumerate(cells):
             item = QTableWidgetItem(text)
@@ -96,22 +100,32 @@ class SweepPanel(QWidget):
         chips = QWidget()
         flow = FlowLayout(chips, spacing=6)
         m = r["mejor"]
+        alg = r.get("algoritmo", "kmeans")
+        propio = {"kmeans": S.BEST_K_ELBOW, "gmm": S.BEST_K_BIC, "jerarquico": S.BEST_K_HEIGHT}[alg]
+        k_propio = m.get("criterio", m.get("codo"))
         for text in (S.BEST_K_SIL.format(k=m["silueta"]), S.BEST_K_CH.format(k=m["ch"]),
-                     S.BEST_K_DB.format(k=m["db"]), S.BEST_K_ELBOW.format(k=m["codo"])):
+                     S.BEST_K_DB.format(k=m["db"]), propio.format(k=k_propio)):
             chip = QLabel(text)
             chip.setObjectName("KChip")
             chip.ensurePolished()
             flow.addWidget(chip)
         best_row.addWidget(chips, 1)
 
-        self.elbow = elbow_chart(r)
+        self.elbow = criterion_chart(r)
         self.silhouette = silhouette_chart(r)
         for chart in (self.elbow, self.silhouette):
             chart.k_clicked.connect(self._choose)
         charts = QHBoxLayout()
         charts.setSpacing(12)
-        charts.addWidget(_chart_box(S.CHART_ELBOW, self.elbow), 1)
+        titulo = {"kmeans": S.CHART_ELBOW, "gmm": S.CHART_BIC, "jerarquico": S.CHART_DENDRO}[alg]
+        charts.addWidget(_chart_box(titulo, self.elbow), 1)
         charts.addWidget(_chart_box(S.CHART_SIL, self.silhouette), 1)
+        self.bic_note = None
+        if alg == "gmm" and r.get("bic_covarianzas"):
+            mejor = min(((v, c, k) for c, vals in r["bic_covarianzas"].items()
+                         for k, v in zip(r["ks"], vals, strict=True) if v is not None), default=None)
+            if mejor:
+                self.bic_note = _note(S.BIC_BEST_COV.format(cov=S.COV_SHORT[mejor[1]].lower(), k=mejor[2]))
 
         self.table = index_table(r)
         note = QLabel(S.INDEX_TABLE_NOTE)
@@ -149,6 +163,8 @@ class SweepPanel(QWidget):
         col.setSpacing(12)
         col.addWidget(best)
         col.addLayout(charts)
+        if self.bic_note is not None:
+            col.addWidget(self.bic_note)
         col.addLayout(bottom)
 
         session.step_updated.connect(self._on_updated)
@@ -236,6 +252,8 @@ class FinalPanel(QWidget):
         self.tabs.addTab(self._stability_tab(), S.TAB_STABILITY)
         self.tabs.addTab(self._sensitivity_tab(), S.TAB_SENSITIVITY)
         self.tabs.addTab(self._descriptive_tab(), S.TAB_DESCRIPTIVE)
+        if r.get("probabilidad"):
+            self.tabs.insertTab(1, self._membership_tab(), S.TAB_MEMBERSHIP)
 
         col = QVBoxLayout(self)
         col.setContentsMargins(16, 14, 16, 16)
@@ -276,6 +294,28 @@ class FinalPanel(QWidget):
         values = " · ".join(f"{name} {fila[cols.index(name)]}" for name in self.r["perfiles"]["columnas"])
         self.profile.setText(S.HEATMAP_DETAIL.format(cluster=cl.name(c), n=fila[cols.index("n")], values=values))
         self.profile.show()
+
+    def _membership_tab(self) -> QWidget:
+        """GMM: probabilidad de pertenencia al cluster asignado; los de frontera, seleccionables."""
+        p = self.r["probabilidad"]
+        frontera = [self.r["filas"][i] for i, v in enumerate(p["p_max"]) if v < p["umbral"]]
+        tab = QWidget()
+        col = QVBoxLayout(tab)
+        col.setContentsMargins(0, 10, 0, 0)
+        col.setSpacing(8)
+        formato = S.MEMBERSHIP_NOTE_1 if p["n_frontera"] == 1 else S.MEMBERSHIP_NOTE
+        note = formato.format(n=p["n_frontera"], u=fmt.num(p["umbral"], 1), m=fmt.num(p["media"]))
+        col.addWidget(_section(S.MEMBERSHIP_TITLE, ProbHistogram(p), hint=note))
+        texto = S.MEMBERSHIP_SELECT_1 if len(frontera) == 1 else S.MEMBERSHIP_SELECT.format(n=len(frontera))
+        self.frontier_button = QPushButton(texto)
+        self.frontier_button.setEnabled(bool(frontera))
+        self.frontier_button.clicked.connect(lambda: self._select_rows(frontera))
+        row = QHBoxLayout()
+        row.addWidget(self.frontier_button)
+        row.addStretch(1)
+        col.addLayout(row)
+        col.addStretch(1)
+        return tab
 
     def _silhouette_tab(self) -> QWidget:
         r = self.r

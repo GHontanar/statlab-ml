@@ -101,6 +101,51 @@ def elbow(sweep: dict, k: int | None) -> Figure:
     return fig
 
 
+def criterio(sweep: dict, k: int | None) -> Figure:
+    """Primer gráfico del barrido según el algoritmo: codo (k-means), BIC (GMM) o dendrograma."""
+    alg = sweep.get("algoritmo", "kmeans")
+    if alg == "gmm":
+        return _bic(sweep, k)
+    if alg == "jerarquico" and sweep.get("dendrograma"):
+        return _dendrograma(sweep, k)
+    return elbow({**sweep, "inercia": sweep.get("inercia") or sweep["criterio"]["valores"]}, k)
+
+
+def _bic(sweep: dict, k: int | None) -> Figure:
+    with _style():
+        fig = _figure()
+        ax = _axes(fig, S.CHART_BIC, S.AXIS_K, S.AXIS_BIC)
+        cov = sweep["opciones"].get("covarianza", "full")
+        estilos = iter(["--", ":", "-."])
+        for c, valores in sweep.get("bic_covarianzas", {}).items():
+            if c != cov:
+                y = [np.nan if v is None else v for v in valores]
+                ax.plot(sweep["ks"], y, next(estilos), color=MUTED, linewidth=1.1, label=S.COV_SHORT[c])
+        y = sweep["criterio"]["valores"]
+        ax.plot(sweep["ks"], y, "-o", color=ACCENT, markersize=5, linewidth=1.8, label=S.COV_SHORT[cov])
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        ax.legend(frameon=False, fontsize=8)
+        if k in sweep["ks"]:
+            _ring(ax, k, y[sweep["ks"].index(k)])
+    return fig
+
+
+def _dendrograma(sweep: dict, k: int | None) -> Figure:
+    with _style():
+        fig = _figure()
+        ax = _axes(fig, S.CHART_DENDRO.split(" (")[0], "", S.AXIS_HEIGHT)
+        d = sweep["dendrograma"]
+        for xs, ys in zip(d["icoord"], d["dcoord"], strict=True):
+            ax.plot(xs, ys, color=TEXT, linewidth=0.9)
+        ax.set_xticks([])
+        ax.grid(False, axis="x")
+        if k is not None and str(k) in d["cortes"]:
+            ax.axhline(d["cortes"][str(k)], color=ACCENT, linestyle="--", linewidth=1.4)
+            ax.text(ax.get_xlim()[0], d["cortes"][str(k)], f" {S.CUT_LABEL.format(k=k)}", color=ACCENT,
+                    va="bottom", fontsize=8)
+    return fig
+
+
 def silhouette_by_k(sweep: dict, k: int | None) -> Figure:
     with _style():
         fig = _figure()
@@ -160,7 +205,7 @@ def pca(r: dict) -> Figure:
     return fig
 
 
-def heatmap(r: dict) -> Figure:
+def heatmap(r: dict, nombre=str) -> Figure:
     with _style():
         z = np.asarray(r["perfiles"]["z"], dtype=float)
         cols = r["perfiles"]["columnas"]
@@ -169,7 +214,7 @@ def heatmap(r: dict) -> Figure:
         ax.set_title(S.HEATMAP_TITLE)
         cmap = LinearSegmentedColormap.from_list("statlab_div", DIVERGING)
         im = ax.imshow(z, cmap=cmap, vmin=-2, vmax=2, aspect="auto")
-        ax.set_xticks(range(len(cols)), cols, rotation=30, ha="right")
+        ax.set_xticks(range(len(cols)), [nombre(c) for c in cols], rotation=30, ha="right")
         ax.set_yticks(range(len(z)), [_cluster_name(c) for c in range(len(z))])
         ax.grid(False)
         for spine in ax.spines.values():
@@ -221,7 +266,61 @@ def boot_histogram(r: dict) -> Figure:
     return fig
 
 
+# --- Diagrama de flujo de pacientes -------------------------------------------
+def flujo_pacientes(flujo) -> Figure:
+    """Cajas en vertical (archivo → analizados) con las exclusiones a la derecha."""
+    from matplotlib.patches import FancyBboxPatch
+
+    filas = len(flujo.exclusiones)
+    alto = 1.6 + 0.9 * max(filas, 1)
+    fig = Figure(figsize=(SIZE_CM[0] / 2.54, alto), layout="constrained")
+    ax = fig.add_subplot(1, 1, 1)
+    ax.set_axis_off()
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, alto)
+
+    def caja(x, y, w, h, texto, fuerte=False):
+        ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.02,rounding_size=0.08",
+                                    facecolor="#E3EDFB" if fuerte else "white", edgecolor=ACCENT if fuerte else MUTED,
+                                    linewidth=1.0))
+        ax.text(x + w / 2, y + h / 2, texto, ha="center", va="center", fontsize=8.5, color=TEXT, wrap=True)
+
+    cx, w, h = 0.5, 3.6, 0.6
+    arriba = alto - 0.2 - h
+    caja(cx, arriba, w, h, S.FLOW_TOTAL.format(n=fmt_n(flujo.n_total)), fuerte=True)
+    abajo = 0.2
+    caja(cx, abajo, w, h, S.FLOW_FINAL.format(n=fmt_n(flujo.n_final)), fuerte=True)
+    ax.annotate("", xy=(cx + w / 2, abajo + h), xytext=(cx + w / 2, arriba),
+                arrowprops={"arrowstyle": "-|>", "color": MUTED, "linewidth": 1.0})
+    if filas:
+        paso = (arriba - abajo - h) / (filas + 1)
+        for i, (motivo, n) in enumerate(flujo.exclusiones, start=1):
+            y = arriba - paso * i
+            ax.plot([cx + w / 2, 5.2], [y, y], color=MUTED, linewidth=1.0)
+            caja(5.2, y - 0.28, 4.4, 0.56, S.FLOW_EXCLUDED.format(motivo=motivo, n=fmt_n(n)))
+    return fig
+
+
+def fmt_n(n: int) -> str:
+    return f"{n:,}".replace(",", ".")
+
+
 # --- Salida ------------------------------------------------------------------
+def pertenencia(r: dict) -> Figure:
+    """GMM: probabilidad de pertenencia al cluster asignado; en ámbar, los de frontera."""
+    with _style():
+        fig = _figure()
+        ax = _axes(fig, S.MEMBERSHIP_TITLE, S.AXIS_PROB, S.AXIS_PATIENTS)
+        p = r["probabilidad"]
+        counts, edges = np.histogram(np.asarray(p["p_max"], dtype=float), bins=20, range=(0, 1))
+        colores = ["#c98a00" if e < p["umbral"] else ACCENT for e in edges[:-1]]
+        ax.bar(edges[:-1], counts, width=np.diff(edges), align="edge", color=colores, alpha=0.8,
+               edgecolor="white", linewidth=0.5)
+        ax.axvline(p["umbral"], color=TEXT, linestyle="--", linewidth=1.2)
+        ax.set_xlim(0, 1)
+    return fig
+
+
 def png_bytes(fig: Figure, dpi: int = 300) -> bytes:
     buf = io.BytesIO()
     with _style():

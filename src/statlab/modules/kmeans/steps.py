@@ -184,6 +184,18 @@ class SweepWidget(QWidget):
             spin.setFixedWidth(80)  # la barra lateral es estrecha
         self.B_label = _label(S.SWEEP_BOOT_B, S.HELP_BOOT)
 
+        # Opción propia del algoritmo: forma de los clusters (GMM) o tipo de enlace (jerárquico)
+        self.alg = session.module.id
+        self.alg_key = {"gmm": "covarianza", "jerarquico": "enlace"}.get(self.alg)
+        self.alg_combo = None
+        if self.alg_key:
+            from statlab.core import clustering as clu
+
+            opciones = clu.COVARIANZAS if self.alg == "gmm" else clu.ENLACES
+            self.alg_combo = _combo(opciones)
+            texto, ayuda = (S.SWEEP_COV, S.HELP_COV) if self.alg == "gmm" else (S.SWEEP_LINK, S.HELP_LINK)
+            self.alg_label = _label(texto, ayuda)
+
         grid = QGridLayout()
         grid.setContentsMargins(0, 0, 0, 0)
         grid.setHorizontalSpacing(8)
@@ -202,7 +214,14 @@ class SweepWidget(QWidget):
         col.setSpacing(8)
         col.addLayout(range_head)
         col.addWidget(self.range)
+        if self.alg_combo is not None:
+            col.addWidget(self.alg_label)
+            col.addWidget(self.alg_combo)
+            self.alg_combo.currentIndexChanged.connect(self._changed)
         col.addLayout(grid)
+        n_init_visible = self.alg != "jerarquico"  # el jerárquico es determinista
+        self.n_init.setVisible(n_init_visible)
+        grid.itemAtPosition(0, 0).widget().setVisible(n_init_visible)
 
         self.range.range_changed.connect(self._changed)
         for spin in (self.n_init, self.seed, self.B):
@@ -213,7 +232,8 @@ class SweepWidget(QWidget):
         self._load_params()
 
     def _widgets(self):
-        return (self.range, self.n_init, self.seed, self.boot, self.B)
+        extra = (self.alg_combo,) if self.alg_combo is not None else ()
+        return (self.range, self.n_init, self.seed, self.boot, self.B, *extra)
 
     def _load_params(self) -> None:
         p = self.session.params(self.PASO)
@@ -224,6 +244,8 @@ class SweepWidget(QWidget):
         self.seed.setValue(int(p["semilla"]))
         self.boot.setChecked(bool(p["bootstrap"]))
         self.B.setValue(int(p["B"]))
+        if self.alg_combo is not None:
+            self.alg_combo.setCurrentIndex(max(self.alg_combo.findData(p.get(self.alg_key)), 0))
         for w in self._widgets():
             w.blockSignals(False)
         self._sync()
@@ -238,6 +260,7 @@ class SweepWidget(QWidget):
     def _changed(self, *_args) -> None:
         self._sync()
         lo, hi = self.range.values()
+        extra = {self.alg_key: self.alg_combo.currentData()} if self.alg_combo is not None else {}
         self.session.set_params(
             self.PASO,
             k_min=lo,
@@ -246,6 +269,7 @@ class SweepWidget(QWidget):
             semilla=self.seed.value(),
             bootstrap=self.boot.isChecked(),
             B=self.B.value(),
+            **extra,
         )
 
 
@@ -274,7 +298,7 @@ class FinalWidget(QWidget):
         grid.addWidget(_label(S.FINAL_B, S.HELP_FINAL_B), 1, 0)
         grid.addWidget(self.B, 1, 1)
         grid.setColumnStretch(0, 1)
-        hint = QLabel(S.FINAL_K_HINT)
+        hint = QLabel(S.FINAL_K_HINTS.get(session.module.id, S.FINAL_K_HINT))
         hint.setObjectName("Hint")
         hint.setWordWrap(True)
 

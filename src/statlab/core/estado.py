@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from statlab.core.dataset import Dataset
 from statlab.core.flow import FlujoPasos
+
+if TYPE_CHECKING:
+    from statlab.core.prep.preparacion import Preparacion
 
 
 @dataclass
@@ -21,6 +24,8 @@ class EstadoSesion:
     dataset: Dataset | None = None
     parametros: dict[str, dict[str, Any]] = field(default_factory=dict)
     resultados: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # archivo original, receta y diccionario de los que sale `dataset` (None en sesiones sin preparar)
+    preparacion: Preparacion | None = None
 
     def snapshot(self) -> EstadoSesion:
         """Copia para un cálculo en segundo plano: la interfaz puede seguir cambiando
@@ -37,11 +42,13 @@ class EstadoSesion:
             ds.solo_filas = None if d.solo_filas is None else set(d.solo_filas)
             ds.excluidas = set(d.excluidas)
             ds.subgrupos = {k: list(v) for k, v in d.subgrupos.items()}
+            ds.excluidas_receta = dict(d.excluidas_receta)
         return EstadoSesion(
             flujo=FlujoPasos.from_dict(self.flujo.ids, self.flujo.to_dict()),
             dataset=ds,
             parametros=copy.deepcopy(self.parametros),
             resultados=dict(self.resultados),
+            preparacion=self.preparacion,  # los cálculos no la usan; se comparte
         )
 
     def params(self, paso: str) -> dict[str, Any]:
