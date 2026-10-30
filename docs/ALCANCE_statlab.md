@@ -382,20 +382,38 @@ columnas, el programa lo dice antes de aplicar.
 | **Concordancia** | Kappa, CCI, Bland-Altman | Pequeño (ya citado en §7.5) |
 | Meta-análisis | Forest plot, heterogeneidad | Datos de estudios, no de pacientes: encaja peor. Solo si hay demanda |
 
-## 10. Distribución en el hospital (bloqueante)
+## 10. Distribución en el hospital
 
-En la prueba de la v0.1.0, el antivirus del hospital **bloquea** StatLab; en un PC personal
-funciona sin problemas. Antes de seguir hay que saber el mensaje exacto, porque hay dos causas posibles:
+**Diagnóstico (v0.2.0, octubre de 2026):** el bloqueo no es de Windows ni de una política de rutas,
+sino de **Panda Adaptive Defense 360** en modo de bloqueo de programas desconocidos («Programa no
+confiable bloqueado»). Bloquea todo ejecutable que su servicio en la nube aún no ha clasificado;
+StatLab no está firmado («Editor: None») y cada versión es un ejecutable nuevo. Un instalador MSI
+no lo resolvería: Panda bloquea por desconocido, no por ubicación.
 
-1. **Política de ejecución (AppLocker o similar):** solo se permiten programas instalados en
-   `Archivos de programa`. Se arregla con un **instalador MSI** desplegable por informática.
-2. **Falso positivo del antivirus** con un ejecutable de PyInstaller sin firmar. Vías, de menor a mayor coste:
-   - que informática autorice la carpeta o el hash;
-   - recompilar el arranque de PyInstaller y enviar el programa al fabricante como falso positivo;
-   - **firma de código**: certificado con coste anual (⚠ Decide Guzmán).
+**Decidido:** StatLab es un proyecto personal y **no se pagará un certificado de firma de código**.
+Quedan las vías gratuitas, que dependen de informática del hospital:
 
-Lo previsible es que en un hospital acaben haciendo falta el instalador y la firma. En la v1
-quedaron fuera de alcance; ahora frenan la adopción.
+- autorizar cada versión en la consola de Panda (desde la lista de bloqueados o por su huella SHA-256);
+- que el hospital firme StatLab con su propio certificado, si tiene uno.
+
+Si ninguna es posible, el ejecutable no se podrá usar en ese hospital. La alternativa a largo plazo
+es la versión web de §10.1.
+
+### 10.1 Versión web con cálculo en el navegador (en el tintero)
+
+**Muy a futuro, fuera de las fases actuales.** Una web estática (alojable gratis, p. ej. en GitHub
+Pages) que ejecuta el motor de Python **dentro del navegador** con **Pyodide** (Python compilado a
+WebAssembly, con pandas, numpy y scikit-learn).
+
+- **Los datos no salen del equipo:** la página se descarga, pero los cálculos se hacen en el propio
+  ordenador. Se mantiene el principio de «cero red» para los datos de pacientes; una web con servidor
+  que reciba los datos queda descartada.
+- **Sin ejecutable que instalar,** así que el antivirus no tiene nada que bloquear (informática aún
+  podría restringir la página).
+- **Reutiliza el motor:** todo `core/` es Python puro sin Qt (hay un test que lo garantiza). Habría
+  que rehacer la interfaz (hoy Qt de escritorio) en HTML.
+- **Por estudiar cuando llegue:** tiempo de la primera carga (decenas de MB), rendimiento con 5.000
+  filas y bootstrap en el navegador, cómo guardar sesiones y exportar informes (PDF y Word) desde la web.
 
 ## 11. Fases
 
@@ -404,7 +422,7 @@ Cada fase termina en una versión publicada, con tests en CI en los tres SO y el
 
 | Fase | Versión | Contenido | Criterio de aceptación |
 |---|---|---|---|
-| **F1** | v0.2.x | Distribución en el hospital (§10); medir el rendimiento con 5.000 filas | StatLab arranca en un PC del hospital; tiempos medidos y documentados |
+| **F1** | — | Distribución en el hospital (§10): sin certificado (decidido); solo las vías gratuitas que dependen de informática. Medir el rendimiento con 5.000 filas | Tiempos medidos y documentados |
 | **F2** ✔ | v0.2 | **Preparación de datos**, núcleo (§8.1, pasos 1–5 y 7): receta no destructiva, revisión de calidad, tipos, recodificar, nuevas variables con fechas; **diccionario** (§8.2); **diagrama de flujo de pacientes** (§8.4) | Un Excel «sucio» de referencia (hoja 2, cabecera en la fila 3, unidades mezcladas, categorías incoherentes, fechas dd/mm) queda listo sin escribir código; la receta se reaplica idéntica al reabrir la sesión; una fórmula de «Mis fórmulas» se aplica a otro archivo asignando sus columnas |
 | **F3** ✔ | v0.3 | Sesión con varias soluciones, cada análisis en su pestaña (`.statlab` v2 con migración); **jerárquico** y **GMM**; **comparación de soluciones** (§5.2), incluida **importar solución** de otra sesión o de un CSV `id;cluster` | Con la cohorte de prueba, k-means y GMM con k=4 dan un ARI ≥ 0,90 y el Sankey enlaza con la tabla; una solución importada de otra sesión y la misma exportada a CSV dan el mismo ARI; las sesiones v1 se abren |
 | **F4** | v0.4 | **Sensibilidad** generalizada (§5.3); k-medoids con Gower | El informe incluye todos los escenarios y la conclusión automática; la robustez por paciente aparece en la tabla |
@@ -412,7 +430,7 @@ Cada fase termina en una versión publicada, con tests en CI en los tres SO y el
 | **F6** | v0.6 | **Supervisado**: logística penalizada, RF, gradient boosting; validación, calibración, curva de decisión, interpretabilidad | Sin fuga de información (test específico); AUC y calibración coinciden con una referencia en scikit-learn |
 | **F7** | v0.7 | **Supervivencia**: KM, log-rank y Cox; regresión inferencial (§7.3) | HR e IC coinciden con R (`survival`) en un dataset de referencia |
 | **F8** | v0.8 | **Unir archivos** y formato largo/ancho (§8.1, paso 6); **plantillas** (§8.6); **pruebas diagnósticas y escalas de riesgo** (§9) | Una plantilla aplicada a un archivo nuevo da el mismo resultado que el análisis hecho a mano |
-| Más adelante | — | Pestañas de sesiones (§5.2), catálogo de referencia de variables (§8.2), anonimización (§8.5), exportar como script (§8.4), resto de §9 (longitudinal, causal, cuestionarios, diseño, concordancia), §5.1 «Más adelante», §6.3, otros idiomas | — |
+| Más adelante | — | Versión web con cálculo en el navegador (§10.1, muy a futuro), pestañas de sesiones (§5.2), catálogo de referencia de variables (§8.2), anonimización (§8.5), exportar como script (§8.4), resto de §9 (longitudinal, causal, cuestionarios, diseño, concordancia), §5.1 «Más adelante», §6.3, otros idiomas | — |
 
 Orden pensado para **reutilizar al máximo**:
 - F2 va primero porque todos los módulos parten de una tabla limpia, y la supervivencia necesita
@@ -446,8 +464,8 @@ colaboración en tiempo real.
 
 ## 14. Decisiones pendientes
 
-1. ¿Qué mensaje exacto da el bloqueo en el hospital? (Decide si F1 es el instalador, la firma o ambos.)
-2. ¿Se paga un certificado de firma de código?
+1. ¿Qué mensaje exacto da el bloqueo en el hospital? **Resuelto:** Panda Adaptive Defense 360 bloquea programas desconocidos (§10).
+2. ¿Se paga un certificado de firma de código? **Decidido: no** (proyecto personal).
 3. ¿Se permiten las categóricas en el modelo? (Reabre una decisión cerrada de la v1.)
 4. ¿Se puede aplicar un modelo a datos nuevos, y con qué limitaciones? (§3)
 5. Dependencias de la §12, una por una.
