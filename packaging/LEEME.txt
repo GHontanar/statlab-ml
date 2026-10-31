@@ -1,5 +1,5 @@
-StatLab — análisis estadístico clínico (clustering k-means)
-============================================================
+StatLab — análisis estadístico clínico (clustering: k-means, GMM y jerárquico)
+==============================================================================
 
 StatLab funciona solo en este equipo: no se conecta a internet, no envía datos
 y no busca actualizaciones. No hace falta instalar Python ni nada más.
@@ -10,8 +10,11 @@ WINDOWS
   2. Abre la carpeta StatLab y haz doble clic en StatLab.exe.
   3. La primera vez, Windows puede mostrar «Windows protegió su PC» (SmartScreen),
      porque el programa no está firmado: pulsa «Más información» y luego
-     «Ejecutar de todas formas». Si el antivirus del hospital lo bloquea, pide al
-     servicio de informática que autorice la carpeta de StatLab.
+     «Ejecutar de todas formas».
+  4. Si el antivirus del hospital lo bloquea («Programa no confiable bloqueado»),
+     pide al servicio de informática que autorice StatLab.exe. El programa no está
+     firmado y cada versión es un ejecutable nuevo, así que hay que autorizar cada
+     versión.
 
 LINUX
   1. Descomprime: tar xzf StatLab-*-linux-x86_64.tar.gz

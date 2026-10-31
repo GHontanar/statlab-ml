@@ -28,8 +28,8 @@ No hace falta instalar Python ni nada más, ni permisos de administrador.
   `Documentos\StatLab`) y haz doble clic en `StatLab.exe`. La primera vez,
   Windows puede mostrar «Windows protegió su PC» (SmartScreen) porque el programa
   no está firmado: pulsa **Más información → Ejecutar de todas formas**. Si el
-  antivirus del hospital lo bloquea, el servicio de informática tendrá que
-  autorizar la carpeta de StatLab.
+  antivirus del hospital lo bloquea («Programa no confiable bloqueado»), el servicio
+  de informática tendrá que autorizar `StatLab.exe`, y volver a hacerlo con cada versión.
 - **Linux**: `tar xzf StatLab-*.tar.gz` y doble clic en `StatLab` dentro de la
   carpeta. `./instalar-acceso-directo.sh` lo añade al menú de aplicaciones.
 - **macOS**: descomprime y arrastra `StatLab.app` a Aplicaciones. La primera vez,
@@ -127,7 +127,10 @@ exporta todos los formatos. Para publicar una versión, cualquiera de estas vía
 El workflow **Tests** ejecuta ruff y pytest en cada push.
 
 Limitaciones conocidas: el ejecutable no está firmado (SmartScreen en Windows,
-Gatekeeper en macOS), y el paquete de macOS es solo para Apple Silicon.
+Gatekeeper en macOS), y el paquete de macOS es solo para Apple Silicon. En equipos con antivirus
+que bloquean programas desconocidos (por ejemplo, Panda Adaptive Defense en hospitales), informática
+tiene que autorizar cada versión; StatLab es un proyecto personal y no se firmará con un
+certificado de pago (ver `docs/ALCANCE_statlab.md`, §10).
 
 ## Estructura
 

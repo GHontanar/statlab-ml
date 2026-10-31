@@ -1,6 +1,10 @@
 # StatLab · alcance después de la v0.1.0
 
-> **Estado: propuesta.** Define hasta dónde puede llegar StatLab y en qué orden. Las decisiones
+> **Estado (31/10/2026):** publicada la **v0.2.0**, con la F2 (preparación de datos) y la F3 (GMM,
+> jerárquico, varios análisis por sesión y comparación de soluciones). Siguiente: F4. Pendientes
+> de la F3 en §11.
+>
+> **Propuesta.** Define hasta dónde puede llegar StatLab y en qué orden. Las decisiones
 > marcadas con **⚠ Decide Guzmán** reabren una decisión cerrada del documento de traspaso
 > (`HANDOFF_statlab-desktop.md`) o añaden una dependencia pesada: no se implementan sin su visto bueno.
 
@@ -520,14 +524,21 @@ Cada fase termina en una versión publicada, con tests en CI en los tres SO y el
 | Fase | Versión | Contenido | Criterio de aceptación |
 |---|---|---|---|
 | **F1** | — | Distribución en el hospital (§10): sin certificado (decidido); solo las vías gratuitas que dependen de informática. Medir el rendimiento con 5.000 filas | Tiempos medidos y documentados |
-| **F2** ✔ | v0.2 | **Preparación de datos**, núcleo (§8.1, pasos 1–5 y 7): receta no destructiva, revisión de calidad, tipos, recodificar, nuevas variables con fechas; **diccionario** (§8.2); **diagrama de flujo de pacientes** (§8.4) | Un Excel «sucio» de referencia (hoja 2, cabecera en la fila 3, unidades mezcladas, categorías incoherentes, fechas dd/mm) queda listo sin escribir código; la receta se reaplica idéntica al reabrir la sesión; una fórmula de «Mis fórmulas» se aplica a otro archivo asignando sus columnas |
-| **F3** ✔ | v0.3 | Sesión con varias soluciones, cada análisis en su pestaña (`.statlab` v2 con migración); **jerárquico** y **GMM**; **comparación de soluciones** (§5.2), incluida **importar solución** de otra sesión o de un CSV `id;cluster` | Con la cohorte de prueba, k-means y GMM con k=4 dan un ARI ≥ 0,90 y el Sankey enlaza con la tabla; una solución importada de otra sesión y la misma exportada a CSV dan el mismo ARI; las sesiones v1 se abren |
-| **F4** | v0.4 | **Plan de análisis guiado** (§8.7) y análisis principal/sensibilidad/exploratorio (§5.5); **sensibilidad** generalizada (§5.3); **k-medoids con Gower** (§5.4) | Un plan cerrado crea el análisis principal y los de sensibilidad con sus parámetros; un cambio posterior queda como desviación con motivo; el informe incluye plan, desviaciones y comparación; todos los escenarios de sensibilidad y la conclusión automática; la robustez por paciente en la tabla; k-medoids recupera los perfiles de la cohorte de prueba con variables categóricas añadidas |
-| **F5** | v0.5 | Base generalizada (roles, pipeline, pantalla «¿Qué quieres hacer?»); **Tabla 1** y **contrastes**; **datos faltantes a fondo** (§8.3) | La Tabla 1 exportada a Word coincide con R (`tableone`) en un dataset de referencia; MICE combinado coincide con R (`mice`) |
-| **F6** | v0.6 | **Supervisado**: logística penalizada, RF, gradient boosting; validación, calibración, curva de decisión, interpretabilidad | Sin fuga de información (test específico); AUC y calibración coinciden con una referencia en scikit-learn |
-| **F7** | v0.7 | **Supervivencia**: KM, log-rank y Cox; regresión inferencial (§7.3) | HR e IC coinciden con R (`survival`) en un dataset de referencia |
-| **F8** | v0.8 | **Unir archivos** y formato largo/ancho (§8.1, paso 6); **plantillas** (§8.6); **pruebas diagnósticas y escalas de riesgo** (§9) | Una plantilla aplicada a un archivo nuevo da el mismo resultado que el análisis hecho a mano |
+| **F2** ✔ | v0.2.0 | **Preparación de datos**, núcleo (§8.1, pasos 1–5 y 7): receta no destructiva, revisión de calidad, tipos, recodificar, nuevas variables con fechas; **diccionario** (§8.2); **diagrama de flujo de pacientes** (§8.4) | Un Excel «sucio» de referencia (hoja 2, cabecera en la fila 3, unidades mezcladas, categorías incoherentes, fechas dd/mm) queda listo sin escribir código; la receta se reaplica idéntica al reabrir la sesión; una fórmula de «Mis fórmulas» se aplica a otro archivo asignando sus columnas |
+| **F3** ✔ | v0.2.0 | Sesión con varias soluciones, cada análisis en su pestaña (`.statlab` v2 con migración); **jerárquico** y **GMM**; **comparación de soluciones** (§5.2), incluida **importar solución** de otra sesión o de un CSV `id;cluster` | Con la cohorte de prueba, k-means y GMM con k=4 dan un ARI ≥ 0,90 y el Sankey enlaza con la tabla; una solución importada de otra sesión y la misma exportada a CSV dan el mismo ARI; las sesiones v1 se abren |
+| **F4** | v0.3 | **Plan de análisis guiado** (§8.7) y análisis principal/sensibilidad/exploratorio (§5.5); **sensibilidad** generalizada (§5.3); **k-medoids con Gower** (§5.4) | Un plan cerrado crea el análisis principal y los de sensibilidad con sus parámetros; un cambio posterior queda como desviación con motivo; el informe incluye plan, desviaciones y comparación; todos los escenarios de sensibilidad y la conclusión automática; la robustez por paciente en la tabla; k-medoids recupera los perfiles de la cohorte de prueba con variables categóricas añadidas |
+| **F5** | v0.4 | Base generalizada (roles, pipeline, pantalla «¿Qué quieres hacer?»); **Tabla 1** y **contrastes**; **datos faltantes a fondo** (§8.3) | La Tabla 1 exportada a Word coincide con R (`tableone`) en un dataset de referencia; MICE combinado coincide con R (`mice`) |
+| **F6** | v0.5 | **Supervisado**: logística penalizada, RF, gradient boosting; validación, calibración, curva de decisión, interpretabilidad | Sin fuga de información (test específico); AUC y calibración coinciden con una referencia en scikit-learn |
+| **F7** | v0.6 | **Supervivencia**: KM, log-rank y Cox; regresión inferencial (§7.3) | HR e IC coinciden con R (`survival`) en un dataset de referencia |
+| **F8** | v0.7 | **Unir archivos** y formato largo/ancho (§8.1, paso 6); **plantillas** (§8.6); **pruebas diagnósticas y escalas de riesgo** (§9) | Una plantilla aplicada a un archivo nuevo da el mismo resultado que el análisis hecho a mano |
 | Más adelante | — | Versión web con cálculo en el navegador (§10.1, muy a futuro), pestañas de sesiones (§5.2), catálogo de referencia de variables (§8.2), anonimización (§8.5), exportar como script (§8.4), resto de §9 (longitudinal, causal, cuestionarios, diseño, concordancia), §5.1 «Más adelante», §6.3, otros idiomas | — |
+
+**Pendientes de la F3** (no incluidos en la v0.2.0; se harán junto con la F4 o después):
+- comparación: pestañas de PCA con los discordantes y de perfiles enfrentados (§5.2);
+- tabla de datos con las columnas `cluster_A`, `cluster_B` y `concordante` (hoy los discordantes
+  se seleccionan en la tabla del análisis A);
+- etiquetas del diccionario en los gráficos y tablas dentro de la app (en el informe ya salen);
+- medir el rendimiento con 5.000 filas (el barrido de GMM con 400 pacientes tarda unos 20 s).
 
 Orden pensado para **reutilizar al máximo**:
 - F2 va primero porque todos los módulos parten de una tabla limpia, y la supervivencia necesita
